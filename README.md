@@ -30,7 +30,7 @@ Schema Flo is a single-page web app for daily psychological self-tracking. It co
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/YOUR_USERNAME/schema-flo.git
+git clone https://github.com/Kate-kisonka/schema-flo.git
 cd schema-flo
 
 # 2. Create a Vite + React project and copy the app
