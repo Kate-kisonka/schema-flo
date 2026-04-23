@@ -41,7 +41,7 @@ npm install
 cp schema-app.jsx src/App.jsx
 
 # 4. Set your Anthropic API key (for AI chat feature)
-echo "VITE_ANTHROPIC_KEY=your_key_here" > .env
+echo "VITE_ANTHROPIC_KEY=your_key_here" > .env 
 
 # 5. Run
 npm run dev
