@@ -1,21 +1,21 @@
-const express = require("express");
-const cors = require("cors");
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const app = express();
+const PORT = 3001;
 
-app.use(cors());
+app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
 
 app.post("/api/chat", (req, res) => {
   const { message } = req.body;
-
   console.log("Получено:", message);
-
-  res.json({
-    reply: "Я пока заглушка 🤖"
-  });
+  res.json({ reply: "Я пока заглушка 🤖" });
 });
 
-app.listen(3001, () => {
-  console.log("Backend запущен на http://localhost:3001");
+app.listen(PORT, () => {
+  console.log(`Backend запущен на http://localhost:${PORT}`);
 });
