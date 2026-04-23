@@ -1,127 +1,118 @@
-# 🌙 Schema Flo
-
-> Personal mental health tracker combining schema therapy, CBT, and menstrual cycle tracking — built with React.
-
-![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-in%20development-orange)
+# Персональный трекер психического здоровья, объединяющий схема-терапию, КПТ и отслеживание менструального цикла — создан на React.
 
 ---
 
-## What is this?
+## Что это?
 
-Schema Flo is a single-page web app for daily psychological self-tracking. It connects emotional states, active schema therapy patterns, and menstrual cycle phases — helping you see patterns over time.
+Schema Flo — это одностраничное веб-приложение для ежедневного психологического самонаблюдения. Оно связывает эмоциональные состояния, активные схемы из схема-терапии и фазы менструального цикла — помогая отслеживать закономерности со временем.
 
-**Core features:**
-- Step-by-step daily diary (moods, body symptoms, schemas, notes)
-- 18 schemas from Young's Schema Therapy with descriptions
-- Menstrual cycle tracker with phase-aware psychological commentary
-- Practice library: crisis techniques, schema therapy exercises, CBT tools
-- Silence practice (#Тишина) — a structured daily practice for crisis periods
-- AI-powered support chat with session history (Claude API)
-- History with charts, calendar view, and smart pattern insights
-- CSV + JSON export for therapist sharing or data backup
+**Основные функции:**
+
+* Пошаговый ежедневный дневник (настроение, телесные симптомы, схемы, заметки)
+* 18 схем из схема-терапии Янга с описаниями
+* Трекер менструального цикла с психологическими комментариями по фазам
+* Библиотека практик: кризисные техники, упражнения схема-терапии, инструменты КПТ
+* Практика тишины (#Тишина) — структурированная ежедневная практика для кризисных периодов
+* Чат поддержки с ИИ с историей сессий (API Claude)
+* История с графиками, календарём и анализом паттернов
+* Экспорт в CSV и JSON для передачи терапевту или резервного копирования
 
 ---
 
-## Quick Start
+## Быстрый старт
 
-**Prerequisites:** Node.js 18+ and npm
+**Требования:** Node.js 18+ и npm
 
 ```bash
-# 1. Clone the repo
+# 1. Клонировать репозиторий
 git clone https://github.com/Kate-kisonka/schema-flo.git
 cd schema-flo
 
-# 2. Create a Vite + React project and copy the app
+# 2. Создать проект Vite + React и скопировать приложение
 npm create vite@latest . -- --template react
 npm install
 
-# 3. Replace src/App.jsx with schema-app.jsx
+# 3. Заменить src/App.jsx на schema-app.jsx
 cp schema-app.jsx src/App.jsx
 
-# 4. Set your Anthropic API key (for AI chat feature)
+# 4. Установить ключ Anthropic API (для чата с ИИ)
 echo "VITE_ANTHROPIC_KEY=your_key_here" > .env 
 
-# 5. Run
+# 5. Запуск
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) — done.
+Откройте [http://localhost:5173](http://localhost:5173) — готово.
 
-> **Note:** The AI chat feature requires an [Anthropic API key](https://console.anthropic.com). The rest of the app works without it.
+> **Примечание:** для работы чата с ИИ требуется ключ Anthropic API. Остальной функционал доступен без него.
 
 ---
 
-## Project Structure
+## Структура проекта
 
 ```
 schema-flo/
-├── schema-app.jsx      # Main application (single-file React component)
+├── schema-app.jsx      # Основное приложение (React-компонент в одном файле)
 ├── README.md
-└── .env.example        # API key template
+└── .env.example        # Шаблон для API-ключа
 ```
 
-This is intentionally a single-file architecture — simple to understand, easy to refactor.
+Архитектура намеренно сделана в одном файле — проста для понимания и удобна для рефакторинга.
 
 ---
 
-## Data Storage
+## Хранение данных
 
-All data is stored in **browser localStorage** — no backend, no account required. Your data stays on your device.
+Все данные хранятся в **localStorage браузера** — без сервера и без аккаунта. Данные остаются на вашем устройстве.
 
-| Key | Contents |
-|-----|----------|
-| `schema_logs` | Daily diary entries |
-| `period_history` | Menstrual cycle history |
-| `silence_logs` | Silence practice entries |
-| `ai_sessions` | Support chat history |
-| `cycleDay` | Current cycle day |
-| `period_start_date` | Last period start |
+| Ключ                | Содержимое                        |
+| ------------------- | --------------------------------- |
+| `schema_logs`       | Записи дневника                   |
+| `period_history`    | История цикла                     |
+| `silence_logs`      | Практика тишины                   |
+| `ai_sessions`       | История чата                      |
+| `cycleDay`          | Текущий день цикла                |
+| `period_start_date` | Дата начала последней менструации |
 
-**To back up your data:** use the Export buttons in the History tab (CSV or full JSON backup).
-
----
-
-## Roadmap
-
-- [ ] Wrap into proper Vite project with `package.json`
-- [ ] Dockerize for local and production deployment
-- [ ] Replace localStorage with a real backend (Supabase)
-- [ ] CI/CD pipeline (GitHub Actions → deploy)
-- [ ] User authentication
-- [ ] Mobile PWA support
+**Для резервного копирования:** используйте экспорт в разделе History (CSV или полный JSON).
 
 ---
 
-## Tech Stack
+## План развития (Roadmap)
 
-| Layer | Technology |
-|-------|-----------|
-| UI | React 18 (hooks only, no class components) |
-| Styling | Inline CSS with design token object |
-| State | useState / useEffect (no external state library) |
-| Storage | localStorage |
-| AI | Anthropic Claude API (claude-sonnet-4) |
-| Build | Vite (recommended) |
+* [ ] Обернуть в полноценный Vite-проект с `package.json`
+* [ ] Docker для локального и продакшн-развертывания
+* [ ] Заменить localStorage на backend (Supabase)
+* [ ] CI/CD (GitHub Actions → деплой)
+* [ ] Авторизация пользователей
+* [ ] Поддержка PWA (мобильная версия)
 
 ---
 
-## Development Notes
+## Технологии
 
-The app is a single React component exported as default from `schema-app.jsx`. All data constants (schemas, moods, cycle phases, etc.) are defined at the top of the file. Component logic is organized into clearly labeled sections with comments.
-
-To explore the code, start from:
-1. `// ─── DATA` — all static content
-2. `// ─── APP` — main component, all state
-3. `renderHome()`, `renderPractices()`, `renderSupport()`, `renderHistory()` — four screen renderers
-
----
-
-## License
-
-MIT — use freely, modify, learn from.
+| Уровень   | Технология             |
+| --------- | ---------------------- |
+| UI        | React 18 (только хуки) |
+| Стили     | Inline CSS             |
+| Состояние | useState / useEffect   |
+| Хранение  | localStorage           |
+| ИИ        | Anthropic Claude API   |
+| Сборка    | Vite                   |
 
 ---
 
-*This project is used as a personal DevOps learning project — CI/CD, Docker, and deployment practice.*
+## Заметки по разработке
+
+Приложение — это один React-компонент (`schema-app.jsx`). Все данные (схемы, эмоции, фазы цикла) находятся в начале файла. Логика разделена на блоки с комментариями.
+
+С чего начать изучение:
+
+1. `// ─── DATA` — статические данные
+2. `// ─── APP` — основной компонент
+3. `renderHome()`, `renderPractices()`, `renderSupport()`, `renderHistory()` — рендер экранов
+
+---
+
+
+*Этот проект используется как учебный DevOps-проект — для практики CI/CD, Docker и деплоя.*
