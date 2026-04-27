@@ -352,21 +352,21 @@ export default function App() {
 Стиль: тёплый, без осуждения, конкретный. Сначала валидируй — потом предлагай. Отвечай на русском.`;
 
     try {
-      const res = await fetch("https://localhost:3001/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, system: ctx, messages: newMessages }),
-      });
-      const data = await res.json();
-      const reply = data.content?.map(b => b.text||"").join("") || "Что-то пошло не так.";
-      const finalMessages = [...newMessages, { role: "assistant", content: reply }];
-      setAiMessages(finalMessages);
-      saveAiSession(finalMessages);
-    } catch {
-      const errMessages = [...newMessages, { role: "assistant", content: "Не удалось подключиться." }];
-      setAiMessages(errMessages);
-    }
-    setAiLoading(false);
-  };
+  const res = await fetch("http://localhost:3001/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: text }),
+  });
+  const data = await res.json();
+  const reply = data.reply || "Что-то пошло не так.";
+  const finalMessages = [...newMessages, { role: "assistant", content: reply }];
+  setAiMessages(finalMessages);
+  saveAiSession(finalMessages);
+} catch {
+  const errMessages = [...newMessages, { role: "assistant", content: "Я пока заглушка 🤖" }];
+  setAiMessages(errMessages);
+}
+setAiLoading(false);
 
   const getAIRecommendations = async () => {
     const schemaNames = activeSchemas.map(id => SCHEMAS.find(s=>s.id===id)?.name).filter(Boolean).join(", ");
@@ -382,7 +382,7 @@ export default function App() {
     try {
       const res = await fetch("https://localhost:3001/v1/messages", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600,
+        body: JSON.stringify({ message: text,
           system: "Ты психологический ассистент. Кратко и конкретно на русском.", messages: [userMsg] }),
       });
       const data = await res.json();
