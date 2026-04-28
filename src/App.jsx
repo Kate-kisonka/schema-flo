@@ -267,6 +267,7 @@ export default function App() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [historyTab, setHistoryTab] = useState("list");
 
+  const [supportTab, setSupportTab] = useState("chat");
   const [saved, setSaved] = useState(false);
   const messagesEndRef = useRef(null);
   const phase = getPhase(cycleDay);
@@ -339,6 +340,26 @@ export default function App() {
 
   // ── AI ────────────────────────────────────────────────────────────────────
 
+  const saveAiSession = (messages) => {
+    const sessionId = currentSession || Date.now().toString();
+    const session = {
+      id: sessionId,
+      date: getTodayKey(),
+      cycleDay,
+      phase: phase.name,
+      title: messages[0]?.content?.slice(0, 60) || "Сессия",
+      messages,
+    };
+    setAiSessions(prev => {
+      const updated = currentSession
+        ? prev.map(s => s.id === currentSession ? session : s)
+        : [session, ...prev];
+      save("ai_sessions", updated);
+      return updated;
+    });
+    setCurrentSession(sessionId);
+  };
+
   const sendToAI = async (overrideInput) => {
     const text = overrideInput || aiInput;
     if (!text.trim()) return;
@@ -352,12 +373,13 @@ export default function App() {
 Стиль: тёплый, без осуждения, конкретный. Сначала валидируй — потом предлагай. Отвечай на русском.`;
 
     try {
-      const res = await fetch("https://localhost:3001/api/chatS", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, system: ctx, messages: newMessages }),
+      const res = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages, context: ctx }),
       });
       const data = await res.json();
-      const reply = data.content?.map(b => b.text||"").join("") || "Что-то пошло не так.";
+      const reply = data.reply || "Что-то пошло не так.";
       const finalMessages = [...newMessages, { role: "assistant", content: reply }];
       setAiMessages(finalMessages);
       saveAiSession(finalMessages);
@@ -380,15 +402,18 @@ export default function App() {
     const userMsg = { role: "user", content: prompt };
     setAiMessages(prev => [...prev, userMsg]); setAiLoading(true);
     try {
-      const res = await fetch("https://localhost:3001/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 600,
-          system: "Ты психологический ассистент. Кратко и конкретно на русском.", messages: [userMsg] }),
+      const ctx = "Ты психологический ассистент. Кратко и конкретно на русском.";
+      const res = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [userMsg], context: ctx }),
       });
       const data = await res.json();
-      const reply = data.content?.map(b=>b.text||"").join("") || "Не удалось получить рекомендации.";
+      const reply = data.reply || "Не удалось получить рекомендации.";
       setAiMessages(prev => [...prev, { role: "assistant", content: reply }]);
-    } catch { setAiMessages(prev => [...prev, { role: "assistant", content: "Не удалось подключиться." }]); }
+    } catch {
+      setAiMessages(prev => [...prev, { role: "assistant", content: "Не удалось подключиться." }]);
+    }
     setAiLoading(false);
   };
 
@@ -423,11 +448,6 @@ export default function App() {
 
   const renderHome = () => {
     const todayLog = logs.find(l => l.date === getTodayKey());
-    const topSchemas = activeSchemas.length
-      ? SCHEMAS.filter(s => activeSchemas.includes(s.id)).slice(0, 3)
-      : logs.flatMap(l => l.schemas||[]).reduce((acc, id) => {
-          acc[id] = (acc[id]||0)+1; return acc;
-        }, {});
 
     return (
       <div>
@@ -495,7 +515,19 @@ export default function App() {
               <div style={{ fontSize:28, marginBottom:8 }}>✓</div>
               <div style={{ fontSize:15, marginBottom:4 }}>День сохранён</div>
               <div style={{ fontSize:12, color:T.muted, marginBottom:14 }}>Молодец — ты отследила своё состояние</div>
-              <button onClick={()=>setDiaryStep(0)} style={{...S.ghostBtn}}>Редактировать</button>
+              <button onClick={()=>{
+                if (todayLog) {
+                  setSelectedMoods(todayLog.moods || []);
+                  setIntensity(todayLog.intensity || 5);
+                  setActiveSchemas(todayLog.schemas || []);
+                  setSymptoms(todayLog.symptoms || []);
+                  setDischarge(todayLog.discharge || null);
+                  setDigestion(todayLog.digestion || null);
+                  setLibido(todayLog.libido || null);
+                  setNotes(todayLog.notes || "");
+                }
+                setDiaryStep(0);
+              }} style={{...S.ghostBtn}}>Редактировать</button>
             </div>
           ) : (
             <>
@@ -800,8 +832,6 @@ export default function App() {
   };
 
   // ── RENDER SUPPORT ────────────────────────────────────────────────────────
-
-  const [supportTab, setSupportTab] = useState("chat"); // chat | history
 
   const renderSupport = () => (
     <div style={{ paddingBottom: 80 }}>
