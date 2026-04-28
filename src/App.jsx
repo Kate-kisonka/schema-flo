@@ -352,9 +352,9 @@ export default function App() {
 Стиль: тёплый, без осуждения, конкретный. Сначала валидируй — потом предлагай. Отвечай на русском.`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://localhost:3001/api/chatS", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, system: ctx, messages: newMessages }),
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, system: ctx, messages: newMessages }),
       });
       const data = await res.json();
       const reply = data.content?.map(b => b.text||"").join("") || "Что-то пошло не так.";
@@ -380,9 +380,9 @@ export default function App() {
     const userMsg = { role: "user", content: prompt };
     setAiMessages(prev => [...prev, userMsg]); setAiLoading(true);
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("https://localhost:3001/api/chat", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 600,
+        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 600,
           system: "Ты психологический ассистент. Кратко и конкретно на русском.", messages: [userMsg] }),
       });
       const data = await res.json();

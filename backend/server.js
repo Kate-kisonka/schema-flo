@@ -11,8 +11,8 @@ app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
 
 app.post("/api/chat", (req, res) => {
-  const { message } = req.body;
-  console.log("Получено:", message);
+  const { message, context } = req.body;
+  console.log("Получено:", message?.length);
   res.json({ reply: "Я пока заглушка 🤖" });
 });
 

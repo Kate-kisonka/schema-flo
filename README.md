@@ -32,12 +32,6 @@ cd schema-flo
 npm create vite@latest . -- --template react
 npm install
 
-# 3. Заменить src/App.jsx на schema-app.jsx
-cp schema-app.jsx src/App.jsx
-
-# 4. Установить ключ Anthropic API (для чата с ИИ)
-echo "VITE_ANTHROPIC_KEY=your_key_here" > .env 
-
 # 5. Запуск
 npm run dev
 ```
