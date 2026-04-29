@@ -1,205 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-
-// ─── DATA ──────────────────────────────────────────────────────────────────────
-
-const SCHEMAS = [
-  { id: "abandonment", name: "Покинутость", domain: "Разлучение", emoji: "🌊", desc: "Страх что близкие уйдут или бросят" },
-  { id: "mistrust", name: "Недоверие", domain: "Разлучение", emoji: "🔒", desc: "Ожидание что другие причинят вред или обманут" },
-  { id: "deprivation", name: "Эмоциональная депривация", domain: "Разлучение", emoji: "🫙", desc: "Убеждение что никто не даст достаточно тепла и заботы" },
-  { id: "defectiveness", name: "Дефективность / Стыд", domain: "Разлучение", emoji: "💔", desc: "Ощущение себя дефектной, нелюбимой, хуже других" },
-  { id: "isolation", name: "Социальная изоляция", domain: "Разлучение", emoji: "🏝️", desc: "Чувство отчуждённости от других людей" },
-  { id: "dependence", name: "Зависимость", domain: "Автономия", emoji: "🪡", desc: "Неспособность справляться с повседневной жизнью без помощи" },
-  { id: "vulnerability", name: "Уязвимость", domain: "Автономия", emoji: "⚡", desc: "Страх что катастрофа случится в любой момент" },
-  { id: "enmeshment", name: "Слияние / Неразвитость Я", domain: "Автономия", emoji: "🌀", desc: "Чрезмерная эмоциональная вовлечённость с близким" },
-  { id: "failure", name: "Неудача", domain: "Автономия", emoji: "📉", desc: "Убеждение что ты неизбежно потерпишь неудачу" },
-  { id: "entitlement", name: "Привилегированность", domain: "Границы", emoji: "👑", desc: "Убеждение что правила не для тебя" },
-  { id: "self_control", name: "Недостаточный самоконтроль", domain: "Границы", emoji: "🌪️", desc: "Трудности с контролем импульсов и фрустрации" },
-  { id: "subjugation", name: "Подчинение", domain: "Другие", emoji: "🎭", desc: "Подавление своих желаний ради других" },
-  { id: "self_sacrifice", name: "Самопожертвование", domain: "Другие", emoji: "🕯️", desc: "Чрезмерная забота о других в ущерб себе" },
-  { id: "approval", name: "Поиск одобрения", domain: "Другие", emoji: "🪞", desc: "Потребность в постоянном одобрении и признании" },
-  { id: "negativity", name: "Негативизм", domain: "Сверхбдительность", emoji: "🌧️", desc: "Фокус на негативных сторонах жизни" },
-  { id: "inhibition", name: "Эмоциональное подавление", domain: "Сверхбдительность", emoji: "🧊", desc: "Подавление спонтанных эмоций и импульсов" },
-  { id: "standards", name: "Жёсткие стандарты", domain: "Сверхбдительность", emoji: "⚖️", desc: "Давление постоянно соответствовать высоким стандартам" },
-  { id: "punitiveness", name: "Карательность", domain: "Сверхбдительность", emoji: "🔨", desc: "Убеждение что люди должны быть строго наказаны за ошибки" },
-];
-
-const MOODS = [
-  { id: "calm", label: "Спокойствие", color: "#7EC8B0", emoji: "🌿" },
-  { id: "joy", label: "Радость", color: "#E9C46A", emoji: "✨" },
-  { id: "anxious", label: "Тревога", color: "#F4A261", emoji: "😰" },
-  { id: "fear", label: "Страх", color: "#7B68A0", emoji: "😨" },
-  { id: "sad", label: "Грусть", color: "#74B3CE", emoji: "🫧" },
-  { id: "tearful", label: "Плаксивость", color: "#89B4CC", emoji: "😢" },
-  { id: "irritable", label: "Раздражение", color: "#E8A838", emoji: "😤" },
-  { id: "angry", label: "Злость", color: "#E76F51", emoji: "🔥" },
-  { id: "rage", label: "Вспышка", color: "#C1392B", emoji: "💢" },
-  { id: "shame", label: "Стыд", color: "#B5838D", emoji: "🌹" },
-  { id: "numb", label: "Пустота", color: "#9B9B9B", emoji: "🌫️" },
-  { id: "overwhelmed", label: "Перегрузка", color: "#6D4C7D", emoji: "🌊" },
-];
-
-const CYCLE_PHASES = [
-  {
-    days: [1,2,3,4,5], name: "Менструация", color: "#E76F51",
-    tip: "Время отдыха и восстановления",
-    gynComment: "Эстроген и прогестерон на минимуме. Матка сокращается, эндометрий отторгается. Норма — тянущие боли, усталость, снижение иммунитета.",
-    mentalComment: "Схемы брошенности и дефективности активнее. Потребность в уединении — физиологична. Снизь планку требований к себе.",
-  },
-  {
-    days: [6,7,8,9,10,11,12,13], name: "Фолликулярная", color: "#E9C46A",
-    tip: "Энергия растёт, хорошее время для новых начинаний",
-    gynComment: "Эстроген растёт — фолликулы созревают. Выделения становятся тянущимися. Энергия, настроение и когнитивные функции улучшаются.",
-    mentalComment: "Схемы активируются меньше. Хорошее время для сложных разговоров, новых решений, терапевтической работы.",
-  },
-  {
-    days: [14,15,16], name: "Овуляция", color: "#7EC8B0",
-    tip: "Пик энергии — ты на подъёме",
-    gynComment: "Пик эстрогена, ЛГ и ФСГ. Прозрачные тянущиеся выделения. Возможны боли сбоку. Пик либидо.",
-    mentalComment: "Социальные потребности на пике. Хорошее время для близости и сотрудничества.",
-  },
-  {
-    days: [17,18,19,20,21,22,23,24,25,26,27,28], name: "Лютеиновая", color: "#B5838D",
-    tip: "Схемы активнее — будь нежна с собой",
-    gynComment: "Прогестерон растёт, потом падает. Задержка жидкости, отёчность, чувствительность груди — норма. ПМС в дни 21–28.",
-    mentalComment: "Время наибольшей уязвимости. Раздражительность, плаксивость — биохимия, не слабость. Требуется больше заботы о себе.",
-  },
-];
-
-const PHYSICAL_SYMPTOMS = [
-  { id: "cramps", label: "Спазмы", emoji: "🌀" },
-  { id: "headache", label: "Голова", emoji: "🤯" },
-  { id: "breast_pain", label: "Грудь", emoji: "💗" },
-  { id: "back_pain", label: "Спина", emoji: "🦴" },
-  { id: "fatigue", label: "Усталость", emoji: "😴" },
-  { id: "acne", label: "Акне", emoji: "😞" },
-  { id: "insomnia", label: "Бессонница", emoji: "🌙" },
-  { id: "appetite_up", label: "Аппетит ↑", emoji: "🍫" },
-  { id: "appetite_down", label: "Аппетит ↓", emoji: "🥗" },
-  { id: "swelling", label: "Отёки", emoji: "💧" },
-  { id: "nausea", label: "Тошнота", emoji: "🤢" },
-  { id: "hot_flash", label: "Приливы", emoji: "🔥" },
-];
-
-const DISCHARGE_TYPES = [
-  { id: "none", label: "Нет", emoji: "⭕" },
-  { id: "dry", label: "Сухо", emoji: "🏜️" },
-  { id: "white", label: "Белые/кремовые", emoji: "🤍" },
-  { id: "clear", label: "Прозрачные тянущиеся", emoji: "💎" },
-  { id: "watery", label: "Водянистые", emoji: "💧" },
-  { id: "bloody", label: "Кровянистые", emoji: "🩸" },
-];
-
-const DIGESTION = [
-  { id: "normal", label: "Обычно", emoji: "✅" },
-  { id: "bloating", label: "Вздутие", emoji: "🫧" },
-  { id: "constipation", label: "Запор", emoji: "🪨" },
-  { id: "diarrhea", label: "Диарея", emoji: "💨" },
-  { id: "nausea", label: "Тошнота", emoji: "🤢" },
-];
-
-const LIBIDO = [
-  { id: "none", label: "Нет", emoji: "❄️" },
-  { id: "low", label: "Низкое", emoji: "🌙" },
-  { id: "medium", label: "Среднее", emoji: "🌤️" },
-  { id: "high", label: "Высокое", emoji: "🔥" },
-];
-
-const NEEDS = [
-  { id: "food", label: "Еда", level: "physio", emoji: "🍽️" },
-  { id: "sleep", label: "Сон", level: "physio", emoji: "😴" },
-  { id: "water", label: "Вода", level: "physio", emoji: "💧" },
-  { id: "movement", label: "Движение", level: "physio", emoji: "🚶" },
-  { id: "safety", label: "Безопасность", level: "safety", emoji: "🛡️" },
-  { id: "stability", label: "Стабильность", level: "safety", emoji: "⚓" },
-  { id: "confidence", label: "Уверенность", level: "safety", emoji: "💪" },
-  { id: "communication", label: "Общение", level: "social", emoji: "💬" },
-  { id: "support", label: "Поддержка", level: "social", emoji: "🤝" },
-  { id: "love", label: "Любовь", level: "social", emoji: "💗" },
-  { id: "care", label: "Забота", level: "social", emoji: "🌸" },
-  { id: "respect", label: "Уважение", level: "esteem", emoji: "🌟" },
-  { id: "recognition", label: "Признание", level: "esteem", emoji: "🏅" },
-  { id: "attachment", label: "Привязанность", level: "esteem", emoji: "🔗" },
-  { id: "creativity", label: "Творчество", level: "growth", emoji: "🎨" },
-  { id: "development", label: "Развитие", level: "growth", emoji: "🌱" },
-  { id: "knowledge", label: "Познание", level: "growth", emoji: "📚" },
-  { id: "skill", label: "Мастерство", level: "growth", emoji: "⚡" },
-  { id: "beauty", label: "Красота", level: "aesthetic", emoji: "🌸" },
-  { id: "travel", label: "Путешествия", level: "aesthetic", emoji: "✈️" },
-  { id: "art", label: "Искусство", level: "aesthetic", emoji: "🎭" },
-  { id: "leadership", label: "Лидерство", level: "self", emoji: "👑" },
-  { id: "mentorship", label: "Менторство", level: "self", emoji: "🤲" },
-  { id: "self_dev", label: "Самореализация", level: "self", emoji: "🦋" },
-];
-
-const NEED_LEVELS = [
-  { id: "physio", label: "Физиологические", color: "#E76F51" },
-  { id: "safety", label: "Безопасность", color: "#E9C46A" },
-  { id: "social", label: "Социальные", color: "#7EC8B0" },
-  { id: "esteem", label: "Уважение и признание", color: "#74B3CE" },
-  { id: "growth", label: "Творчество и познание", color: "#B5838D" },
-  { id: "aesthetic", label: "Эстетические", color: "#9B7FD4" },
-  { id: "self", label: "Самоактуализация", color: "#5C8A6B" },
-];
-
-const EXERCISES = {
-  crisis: [
-    { id: "breathing_478", name: "Дыхание 4-7-8", icon: "🌬️", duration: "2 мин", desc: "Вдох 4 сек → задержка 7 сек → выдох 8 сек. 4 цикла. Активирует парасимпатику." },
-    { id: "cold_water", name: "Холодная вода", icon: "💧", duration: "1 мин", desc: "Умойся холодной водой. Активирует рефлекс ныряния — замедляет сердце." },
-    { id: "tapping", name: "EFT-постукивание", icon: "👆", duration: "5 мин", desc: "Постукивай по точкам называя чувство: «Я чувствую тревогу и принимаю себя»" },
-    { id: "grounding", name: "5-4-3-2-1", icon: "🌱", duration: "3 мин", desc: "5 видишь, 4 слышишь, 3 чувствуешь, 2 пахнут, 1 на вкус" },
-  ],
-  schema: [
-    { id: "safe_place", name: "Безопасное место", icon: "🏡", duration: "10 мин", desc: "Визуализация места где ты в безопасности и принята" },
-    { id: "inner_child", name: "Внутренний ребёнок", icon: "🧸", duration: "15 мин", desc: "Поговори с той частью себя, которой сейчас больно" },
-    { id: "healthy_adult", name: "Здоровый Взрослый", icon: "💪", duration: "8 мин", desc: "Что сказал бы тебе мудрый, заботливый взрослый?" },
-    { id: "chair_work", name: "Работа со стулом", icon: "🪑", duration: "20 мин", desc: "Письмо от схемы и ответ от Здорового Взрослого" },
-    { id: "needs_ex", name: "Базовая потребность", icon: "💛", duration: "5 мин", desc: "Какая базовая потребность сейчас не удовлетворена?" },
-  ],
-  cbt: [
-    { id: "thought_record", name: "Дневник мыслей", icon: "📝", duration: "10 мин", desc: "Запиши автоматическую мысль и найди альтернативу" },
-    { id: "behavioral_act", name: "Поведенческая активация", icon: "🚶", duration: "5 мин", desc: "Одно маленькое действие которое принесёт удовольствие" },
-    { id: "decatastrophizing", name: "Декатастрофизация", icon: "🔍", duration: "8 мин", desc: "Что самое плохое? Насколько вероятно? Что сделаешь?" },
-    { id: "resource_state", name: "Ресурсное состояние", icon: "🌟", duration: "7 мин", desc: "Вспомни момент когда ты чувствовала себя хорошо. Погрузись в него." },
-  ],
-};
-
-const QUICK_STATES = [
-  { id: "bad", label: "Мне плохо", emoji: "🌊", prompt: "Мне сейчас очень плохо. Просто побудь рядом и помоги разобраться что происходит." },
-  { id: "anxious", label: "Тревожусь", emoji: "😰", prompt: "Я сейчас сильно тревожусь. Помоги мне успокоиться и понять откуда эта тревога." },
-  { id: "talk", label: "Хочу поговорить", emoji: "💬", prompt: "Хочу просто поговорить о том что у меня на душе. Я готова рассказать." },
-  { id: "technique", label: "Нужна техника", emoji: "🛠️", prompt: "Порекомендуй мне конкретную технику для моего состояния прямо сейчас." },
-  { id: "schema_now", label: "Схема активна", emoji: "🌀", prompt: "Я чувствую что у меня активировалась схема. Помоги разобраться какая и что с этим делать." },
-  { id: "angry_now", label: "Злость/вспышка", emoji: "💢", prompt: "У меня вспышка злости / раздражения. Помоги справиться прямо сейчас." },
-];
-
-const DOMAINS = [...new Set(SCHEMAS.map(s => s.domain))];
-
-// ─── HELPERS ───────────────────────────────────────────────────────────────────
-
-function getPhase(day) {
-  return CYCLE_PHASES.find(p => p.days.includes(day)) || CYCLE_PHASES[3];
-}
-
-function getTodayKey() {
-  return new Date().toISOString().split("T")[0];
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
-}
-
-function getDayOfWeek(dateStr) {
-  return ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"][new Date(dateStr).getDay()];
-}
-
-function load(key, fallback) {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
-}
-
-function save(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
-}
+import {
+  SCHEMAS, MOODS, CYCLE_PHASES, PHYSICAL_SYMPTOMS, DISCHARGE_TYPES,
+  DIGESTION, LIBIDO, NEEDS, NEED_LEVELS, EXERCISES, QUICK_STATES, DOMAINS,
+} from "./data";
+import { getPhase, getTodayKey, formatDate, getDayOfWeek, load, save } from "./utils";
+import Breathing478 from "./components/Breathing478";
 
 // ─── THEME ─────────────────────────────────────────────────────────────────────
 
@@ -267,6 +72,7 @@ export default function App() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [historyTab, setHistoryTab] = useState("list");
 
+  const [supportTab, setSupportTab] = useState("chat");
   const [saved, setSaved] = useState(false);
   const messagesEndRef = useRef(null);
   const phase = getPhase(cycleDay);
@@ -339,6 +145,26 @@ export default function App() {
 
   // ── AI ────────────────────────────────────────────────────────────────────
 
+  const saveAiSession = (messages) => {
+    const sessionId = currentSession || Date.now().toString();
+    const session = {
+      id: sessionId,
+      date: getTodayKey(),
+      cycleDay,
+      phase: phase.name,
+      title: messages[0]?.content?.slice(0, 60) || "Сессия",
+      messages,
+    };
+    setAiSessions(prev => {
+      const updated = currentSession
+        ? prev.map(s => s.id === currentSession ? session : s)
+        : [session, ...prev];
+      save("ai_sessions", updated);
+      return updated;
+    });
+    setCurrentSession(sessionId);
+  };
+
   const sendToAI = async (overrideInput) => {
     const text = overrideInput || aiInput;
     if (!text.trim()) return;
@@ -352,12 +178,13 @@ export default function App() {
 Стиль: тёплый, без осуждения, конкретный. Сначала валидируй — потом предлагай. Отвечай на русском.`;
 
     try {
-      const res = await fetch("https://localhost:3001/api/chatS", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 800, system: ctx, messages: newMessages }),
+      const res = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: newMessages, context: ctx }),
       });
       const data = await res.json();
-      const reply = data.content?.map(b => b.text||"").join("") || "Что-то пошло не так.";
+      const reply = data.reply || "Что-то пошло не так.";
       const finalMessages = [...newMessages, { role: "assistant", content: reply }];
       setAiMessages(finalMessages);
       saveAiSession(finalMessages);
@@ -380,15 +207,18 @@ export default function App() {
     const userMsg = { role: "user", content: prompt };
     setAiMessages(prev => [...prev, userMsg]); setAiLoading(true);
     try {
-      const res = await fetch("https://localhost:3001/api/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 600,
-          system: "Ты психологический ассистент. Кратко и конкретно на русском.", messages: [userMsg] }),
+      const ctx = "Ты психологический ассистент. Кратко и конкретно на русском.";
+      const res = await fetch("http://localhost:3001/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [userMsg], context: ctx }),
       });
       const data = await res.json();
-      const reply = data.content?.map(b=>b.text||"").join("") || "Не удалось получить рекомендации.";
+      const reply = data.reply || "Не удалось получить рекомендации.";
       setAiMessages(prev => [...prev, { role: "assistant", content: reply }]);
-    } catch { setAiMessages(prev => [...prev, { role: "assistant", content: "Не удалось подключиться." }]); }
+    } catch {
+      setAiMessages(prev => [...prev, { role: "assistant", content: "Не удалось подключиться." }]);
+    }
     setAiLoading(false);
   };
 
@@ -423,11 +253,6 @@ export default function App() {
 
   const renderHome = () => {
     const todayLog = logs.find(l => l.date === getTodayKey());
-    const topSchemas = activeSchemas.length
-      ? SCHEMAS.filter(s => activeSchemas.includes(s.id)).slice(0, 3)
-      : logs.flatMap(l => l.schemas||[]).reduce((acc, id) => {
-          acc[id] = (acc[id]||0)+1; return acc;
-        }, {});
 
     return (
       <div>
@@ -495,7 +320,19 @@ export default function App() {
               <div style={{ fontSize:28, marginBottom:8 }}>✓</div>
               <div style={{ fontSize:15, marginBottom:4 }}>День сохранён</div>
               <div style={{ fontSize:12, color:T.muted, marginBottom:14 }}>Молодец — ты отследила своё состояние</div>
-              <button onClick={()=>setDiaryStep(0)} style={{...S.ghostBtn}}>Редактировать</button>
+              <button onClick={()=>{
+                if (todayLog) {
+                  setSelectedMoods(todayLog.moods || []);
+                  setIntensity(todayLog.intensity || 5);
+                  setActiveSchemas(todayLog.schemas || []);
+                  setSymptoms(todayLog.symptoms || []);
+                  setDischarge(todayLog.discharge || null);
+                  setDigestion(todayLog.digestion || null);
+                  setLibido(todayLog.libido || null);
+                  setNotes(todayLog.notes || "");
+                }
+                setDiaryStep(0);
+              }} style={{...S.ghostBtn}}>Редактировать</button>
             </div>
           ) : (
             <>
@@ -800,8 +637,6 @@ export default function App() {
   };
 
   // ── RENDER SUPPORT ────────────────────────────────────────────────────────
-
-  const [supportTab, setSupportTab] = useState("chat"); // chat | history
 
   const renderSupport = () => (
     <div style={{ paddingBottom: 80 }}>
@@ -1192,56 +1027,3 @@ export default function App() {
   );
 }
 
-// ─── BREATHING 4-7-8 ───────────────────────────────────────────────────────────
-
-function Breathing478() {
-  const [step, setStep] = useState(0);
-  const [count, setCount] = useState(0);
-  const [round, setRound] = useState(0);
-  const totalRounds = 4;
-  const steps = [
-    { label: "Готова?", duration: 0, color: "#8B7355", hint: "" },
-    { label: "Вдох", duration: 4, color: "#7EC8B0", hint: "через нос, медленно" },
-    { label: "Задержка", duration: 7, color: "#E9C46A", hint: "не дышать" },
-    { label: "Выдох", duration: 8, color: "#74B3CE", hint: "через рот, со звуком" },
-  ];
-  const cur = steps[step];
-
-  useEffect(() => {
-    if (step === 0) return;
-    if (count > 0) { const t = setTimeout(() => setCount(c=>c-1), 1000); return () => clearTimeout(t); }
-    if (step < 3) { const ns = step+1; setStep(ns); setCount(steps[ns].duration); }
-    else if (round+1 < totalRounds) { setRound(r=>r+1); setStep(1); setCount(steps[1].duration); }
-    else { setStep(0); setRound(0); }
-  }, [step, count]);
-
-  const start = () => { setStep(1); setCount(steps[1].duration); setRound(0); };
-  const stop = () => { setStep(0); setCount(0); setRound(0); };
-  const scale = step === 1 ? 1.35 : step === 3 ? 0.8 : 1;
-  const progress = step > 0 ? ((steps[step].duration - count) / steps[step].duration) * 100 : 0;
-  const r = 48, circ = 2 * Math.PI * r;
-
-  return (
-    <div style={{ textAlign: "center", marginTop: 18 }}>
-      {step > 0 && <div style={{ fontSize: 10, color: "#8B7355", marginBottom: 7 }}>Цикл {round+1} из {totalRounds}</div>}
-      <div style={{ position: "relative", width: 110, height: 110, margin: "0 auto 14px" }}>
-        <svg width="110" height="110" style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
-          <circle cx="55" cy="55" r={r} fill="none" stroke={cur.color+"22"} strokeWidth="4" />
-          {step > 0 && <circle cx="55" cy="55" r={r} fill="none" stroke={cur.color} strokeWidth="4"
-            strokeDasharray={circ} strokeDashoffset={circ*(1-progress/100)}
-            style={{ transition: "stroke-dashoffset 1s linear, stroke 0.4s" }} />}
-        </svg>
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", transform: `scale(${scale})`, transition: "transform 1s ease" }}>
-          {step > 0 && <div style={{ fontSize: 24, fontWeight: "bold", color: cur.color, lineHeight: 1 }}>{count}</div>}
-          <div style={{ fontSize: step>0?10:11, color: "#5C4A32", marginTop: step>0?2:0 }}>{cur.label}</div>
-        </div>
-      </div>
-      {step > 0 && <div style={{ fontSize: 11, color: "#8B7355", marginBottom: 11, fontStyle: "italic" }}>{cur.hint}</div>}
-      <button onClick={step===0?start:stop} style={{ padding: "8px 22px", borderRadius: 16, border: "1px solid #E8E0D5", background: step>0?"#E76F51":"#2C2416", color: "#F5F0EB", cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 13 }}>
-        {step > 0 ? "Стоп" : "Начать"}
-      </button>
-      {step===0&&round===0&&<div style={{fontSize:10,color:"#8B7355",marginTop:7}}>4 цикла · ~1.5 минуты</div>}
-      {step===0&&round>0&&<div style={{fontSize:13,color:"#7EC8B0",marginTop:8}}>✓ Готово! Как ты?</div>}
-    </div>
-  );
-}
