@@ -178,7 +178,7 @@ export default function App() {
 Стиль: тёплый, без осуждения, конкретный. Сначала валидируй — потом предлагай. Отвечай на русском.`;
 
     try {
-      const res = await fetch("http://schema-flo.onrender.com/api/chat", {
+      const res = await fetch("https://schema-flo.onrender.com/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: newMessages, context: ctx }),
@@ -208,7 +208,7 @@ export default function App() {
     setAiMessages(prev => [...prev, userMsg]); setAiLoading(true);
     try {
       const ctx = "Ты психологический ассистент. Кратко и конкретно на русском.";
-      const res = await fetch("http://schema-flo.onrender.com/api/chat", {
+      const res = await fetch("https://schema-flo.onrender.com/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: [userMsg], context: ctx }),
