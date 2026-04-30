@@ -2,9 +2,9 @@ name: ci
 
 on:
   push:
-    brashes:["**"]
+    branches:["**"]
   pull_request:
-    brashes:["**"]
+    branches:["**"]
 
 jobs:
   build-frontend:
