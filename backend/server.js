@@ -7,7 +7,7 @@ dotenv.config();
 const app = express();
 const PORT = 3001;
 
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors({ origin: ["http://localhost5173", "https://schema-flo.vercel.app"], }));
 app.use(express.json());
 
 app.post("/api/chat", (req, res) => {
