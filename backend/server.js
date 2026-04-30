@@ -13,7 +13,7 @@ app.use(express.json());
 app.post("/api/chat", (req, res) => {
   const { message, context } = req.body;
   console.log("Получено:", message?.length);
-  res.json({ reply: "Я пока заглушка 🤖" });
+  res.json({ reply: "Я пока заглушка, но очень хочу тебе помочь🤖" });
 });
 
 app.listen(PORT, () => {
