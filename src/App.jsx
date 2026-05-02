@@ -9,9 +9,14 @@ import Breathing478 from "./components/Breathing478";
 // ─── THEME ─────────────────────────────────────────────────────────────────────
 
 const T = {
-  bg: "#F5F0EB", card: "#FFFDF9", border: "#E8E0D5",
-  text: "#2C2416", muted: "#8B7355", accent: "#B5838D",
-  font: "'Georgia','Times New Roman',serif",
+  bg: "transparent",
+  card: "rgba(255,255,255,0.72)",
+  border: "rgba(190,165,220,0.25)",
+  text: "#1A1028",
+  muted: "#9B8AB0",
+  accent: "#9B6EC8",
+  accent2: "#FF7B6B",
+  font: "'Inter', system-ui, -apple-system, sans-serif",
 };
 
 // ─── APP ───────────────────────────────────────────────────────────────────────
@@ -234,16 +239,16 @@ export default function App() {
 
   const S = {
     app: { minHeight: "100vh", background: T.bg, fontFamily: T.font, color: T.text, maxWidth: 430, margin: "0 auto" },
-    nav: { display: "flex", borderTop: `1px solid ${T.border}`, background: T.card, position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 20 },
-    navBtn: (a) => ({ flex: 1, padding: "10px 2px 12px", border: "none", background: "none", fontSize: 9, color: a ? T.text : T.muted, cursor: "pointer", fontFamily: T.font, borderTop: a ? `2px solid ${T.text}` : "2px solid transparent" }),
+    nav: { display: "flex", borderTop: `1px solid rgba(190,165,220,0.2)`, background: "rgba(255,255,255,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 20 },
+    navBtn: (a) => ({ flex: 1, padding: "10px 2px 12px", border: "none", background: "none", fontSize: 9, color: a ? T.accent : T.muted, cursor: "pointer", fontFamily: T.font, borderTop: a ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: a ? "600" : "400", transition: "color 0.2s" }),
     content: { padding: "0 15px 90px" },
-    card: { background: T.card, borderRadius: 14, padding: 16, marginBottom: 12, border: `1px solid ${T.border}` },
-    st: { fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: T.muted, marginBottom: 10, marginTop: 0 },
-    textarea: { width: "100%", padding: "10px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, fontFamily: T.font, fontSize: 13, color: T.text, resize: "none", boxSizing: "border-box", outline: "none" },
-    chip: (a, color) => ({ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 9px", borderRadius: 16, border: `1px solid ${a ? color : T.border}`, background: a ? color+"22" : "transparent", cursor: "pointer", fontSize: 11, marginRight: 5, marginBottom: 5, fontFamily: T.font }),
-    primaryBtn: (color) => ({ width: "100%", padding: "13px", background: color||T.text, color: T.bg, border: "none", borderRadius: 11, fontSize: 14, cursor: "pointer", fontFamily: T.font, letterSpacing: "0.03em" }),
-    ghostBtn: { width: "100%", padding: "11px", background: "transparent", color: T.muted, border: `1px solid ${T.border}`, borderRadius: 11, fontSize: 13, cursor: "pointer", fontFamily: T.font },
-    stepDot: (active, done) => ({ width: 8, height: 8, borderRadius: "50%", background: done ? "#7EC8B0" : active ? T.text : T.border, transition: "all 0.3s" }),
+    card: { background: "rgba(255,255,255,0.75)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 18, padding: 16, marginBottom: 12, border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 4px 24px rgba(120,80,180,0.08), 0 1px 4px rgba(0,0,0,0.04)" },
+    st: { fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: T.muted, marginBottom: 10, marginTop: 0, fontWeight: "600" },
+    textarea: { width: "100%", padding: "12px", borderRadius: 12, border: `1px solid ${T.border}`, background: "rgba(255,255,255,0.6)", fontFamily: T.font, fontSize: 13, color: T.text, resize: "none", boxSizing: "border-box", outline: "none", transition: "border-color 0.2s, box-shadow 0.2s" },
+    chip: (a, color) => ({ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 11px", borderRadius: 20, border: `1.5px solid ${a ? color : T.border}`, background: a ? color+"28" : "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 11, marginRight: 5, marginBottom: 5, fontFamily: T.font, fontWeight: a ? "500" : "400", transition: "all 0.15s ease" }),
+    primaryBtn: (color) => ({ width: "100%", padding: "14px", background: color || `linear-gradient(135deg, ${T.accent} 0%, #7B4FAF 100%)`, color: "#fff", border: "none", borderRadius: 14, fontSize: 14, cursor: "pointer", fontFamily: T.font, letterSpacing: "0.02em", fontWeight: "500", boxShadow: `0 4px 16px ${color ? color+"55" : "rgba(155,110,200,0.35)"}` }),
+    ghostBtn: { width: "100%", padding: "12px", background: "rgba(255,255,255,0.55)", color: T.muted, border: `1px solid ${T.border}`, borderRadius: 14, fontSize: 13, cursor: "pointer", fontFamily: T.font, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" },
+    stepDot: (active, done) => ({ width: 8, height: 8, borderRadius: "50%", background: done ? T.accent : active ? T.text : T.border, transition: "all 0.3s", boxShadow: (done || active) ? `0 0 6px ${T.accent}88` : "none" }),
   };
 
   const cycleColors = CYCLE_PHASES.flatMap(p => p.days.map(d => ({ day: d, color: p.color })));
@@ -272,7 +277,7 @@ export default function App() {
 
           {/* Phase bar */}
           <div style={{ background: phase.color+"20", borderLeft: `3px solid ${phase.color}`, borderRadius: 8, padding: "10px 13px", marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: "#5C4A32", lineHeight: 1.6 }}>{phase.mentalComment}</div>
+            <div style={{ fontSize: 12, color: "#6B5A80", lineHeight: 1.6 }}>{phase.mentalComment}</div>
           </div>
 
           {/* Cycle strip */}
@@ -358,7 +363,7 @@ export default function App() {
                     {MOODS_BASIC.map(m => (
                       <button key={m.id} style={{ padding:"8px 2px", borderRadius:10, border:`2px solid ${selectedMoods.includes(m.id)?m.color:T.border}`, background:selectedMoods.includes(m.id)?m.color+"22":"transparent", cursor:"pointer", textAlign:"center", fontFamily:T.font }} onClick={()=>toggleMood(m.id)}>
                         <div style={{fontSize:19}}>{m.emoji}</div>
-                        <div style={{fontSize:9,color:"#5C4A32",marginTop:2}}>{m.label}</div>
+                        <div style={{fontSize:9,color:"#6B5A80",marginTop:2}}>{m.label}</div>
                       </button>
                     ))}
                   </div>
@@ -370,7 +375,7 @@ export default function App() {
                       {MOODS_EXTENDED.map(m => (
                         <button key={m.id} style={{ padding:"8px 2px", borderRadius:10, border:`2px solid ${selectedMoods.includes(m.id)?m.color:T.border}`, background:selectedMoods.includes(m.id)?m.color+"22":"transparent", cursor:"pointer", textAlign:"center", fontFamily:T.font }} onClick={()=>toggleMood(m.id)}>
                           <div style={{fontSize:19}}>{m.emoji}</div>
-                          <div style={{fontSize:9,color:"#5C4A32",marginTop:2}}>{m.label}</div>
+                          <div style={{fontSize:9,color:"#6B5A80",marginTop:2}}>{m.label}</div>
                         </button>
                       ))}
                     </div>
@@ -485,9 +490,9 @@ export default function App() {
             {!phaseExpanded && <p style={{fontSize:12,color:T.muted,margin:"6px 0 0",lineHeight:1.5,fontStyle:"italic"}}>{phase.tip}</p>}
             {phaseExpanded && (
               <div style={{marginTop:10}}>
-                <p style={{fontSize:12,color:"#5C4A32",lineHeight:1.7,margin:"0 0 8px"}}>{phase.gynComment}</p>
+                <p style={{fontSize:12,color:"#6B5A80",lineHeight:1.7,margin:"0 0 8px"}}>{phase.gynComment}</p>
                 <div style={{fontSize:10,color:phase.color,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:4}}>Психологически</div>
-                <p style={{fontSize:12,color:"#5C4A32",lineHeight:1.7,margin:0}}>{phase.mentalComment}</p>
+                <p style={{fontSize:12,color:"#6B5A80",lineHeight:1.7,margin:0}}>{phase.mentalComment}</p>
               </div>
             )}
           </div>
@@ -562,12 +567,12 @@ export default function App() {
                 </div>
                 <button onClick={startSilence} style={S.primaryBtn("#5C8A6B")}>Начать практику</button>
               </div>
-              <div style={{...S.card,background:"#2C241608"}}>
+              <div style={{...S.card,background:"#1A102808"}}>
                 <p style={{...S.st,marginBottom:8}}>Как работает</p>
                 {["Утром: чек-ап потребностей по пирамиде Маслоу","В течение дня: движение / танец в своём состоянии","После движения: записать мысли и чувства","Вечером: два вопроса дня"].map((text,i)=>(
                   <div key={i} style={{display:"flex",gap:9,marginBottom:9,alignItems:"flex-start"}}>
                     <div style={{width:20,height:20,borderRadius:"50%",background:T.text,color:T.bg,fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{i+1}</div>
-                    <div style={{fontSize:12,color:"#5C4A32",lineHeight:1.5}}>{text}</div>
+                    <div style={{fontSize:12,color:"#6B5A80",lineHeight:1.5}}>{text}</div>
                   </div>
                 ))}
               </div>
@@ -630,7 +635,7 @@ export default function App() {
           {exerciseTab==="crisis" && (
             <div style={{...S.card,background:"#E76F5108",borderColor:"#E76F5144",marginBottom:12}}>
               <p style={{margin:"0 0 4px",fontSize:13,color:"#E76F51"}}>Сейчас очень тяжело?</p>
-              <p style={{margin:0,fontSize:12,color:"#5C4A32",lineHeight:1.5}}>Выбери любую технику. Та, что откликается — и есть нужная.</p>
+              <p style={{margin:0,fontSize:12,color:"#6B5A80",lineHeight:1.5}}>Выбери любую технику. Та, что откликается — и есть нужная.</p>
             </div>
           )}
           {EXERCISES[exerciseTab]?.map(ex=>(
@@ -643,7 +648,7 @@ export default function App() {
                 </div>
                 {completedExercises.includes(ex.id)&&<span style={{color:"#7EC8B0",fontSize:14}}>✓</span>}
               </div>
-              <div style={{fontSize:12,color:"#5C4A32",marginTop:8,lineHeight:1.5}}>{ex.desc}</div>
+              <div style={{fontSize:12,color:"#6B5A80",marginTop:8,lineHeight:1.5}}>{ex.desc}</div>
             </div>
           ))}
         </div>
@@ -681,7 +686,7 @@ export default function App() {
       {supportTab==="chat" && <div style={{ ...S.content }}>
         {showQuickStates && aiMessages.length === 0 && (
           <div style={{padding:"16px 0 0"}}>
-            <div style={{...S.card,background:"#2C241608",borderColor:"#2C241620"}}>
+            <div style={{...S.card,background:"#1A102808",borderColor:"#1A102820"}}>
               <p style={{margin:"0 0 5px",fontSize:14}}>Как я могу помочь?</p>
               <p style={{margin:0,fontSize:12,color:T.muted,lineHeight:1.6}}>Я знаю твоё состояние сегодня — день цикла, настроение, активные схемы.</p>
             </div>
@@ -810,13 +815,13 @@ export default function App() {
           </div>
           <div style={{...S.card,borderLeft:`3px solid ${lp.color}`}}>
             <p style={S.st}>Медицинский контекст фазы</p>
-            <p style={{fontSize:12,color:"#5C4A32",lineHeight:1.7,margin:0}}>{lp.gynComment}</p>
+            <p style={{fontSize:12,color:"#6B5A80",lineHeight:1.7,margin:0}}>{lp.gynComment}</p>
           </div>
           {log.moods?.length>0&&<div style={S.card}><p style={S.st}>Эмоции</p><div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>{log.moods.map(id=>{const m=MOODS.find(x=>x.id===id);return m?<span key={id} style={{display:"inline-flex",alignItems:"center",gap:4,padding:"4px 9px",borderRadius:14,background:m.color+"22",border:`1px solid ${m.color}`,fontSize:12}}>{m.emoji} {m.label}</span>:null;})}</div><div style={{fontSize:12,color:T.muted}}>Интенсивность: <b>{log.intensity}/10</b></div></div>}
           {log.schemas?.length>0&&<div style={S.card}><p style={S.st}>Активные схемы</p>{log.schemas.map(id=>{const sc=SCHEMAS.find(s=>s.id===id);return sc?<div key={id} style={{display:"flex",alignItems:"flex-start",gap:7,marginBottom:7}}><span style={{fontSize:14,marginTop:1}}>{sc.emoji}</span><div><div style={{fontSize:12}}>{sc.name}</div><div style={{fontSize:11,color:T.muted}}>{sc.desc}</div></div></div>:null;})}</div>}
           {(log.symptoms?.length>0||log.discharge||log.libido)&&<div style={S.card}><p style={S.st}>Тело</p>{log.discharge&&<div style={{fontSize:12,marginBottom:5}}>Выделения: {DISCHARGE_TYPES.find(d=>d.id===log.discharge)?.emoji} {DISCHARGE_TYPES.find(d=>d.id===log.discharge)?.label}</div>}{log.libido&&<div style={{fontSize:12,marginBottom:5}}>Либидо: {LIBIDO.find(l=>l.id===log.libido)?.emoji} {LIBIDO.find(l=>l.id===log.libido)?.label}</div>}{log.symptoms?.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:5}}>{log.symptoms.map(id=>{const s=PHYSICAL_SYMPTOMS.find(x=>x.id===id);return s?<span key={id} style={{fontSize:12}}>{s.emoji} {s.label}</span>:null;})}</div>}</div>}
           {log.exercises?.length>0&&<div style={S.card}><p style={S.st}>Практики дня</p>{log.exercises.map(id=>{const ex=[...EXERCISES.crisis,...EXERCISES.schema,...EXERCISES.cbt].find(e=>e.id===id);return ex?<div key={id} style={{fontSize:12,marginBottom:4}}>{ex.icon} {ex.name}</div>:null;})}</div>}
-          {log.notes&&<div style={S.card}><p style={S.st}>Заметки</p><p style={{fontSize:13,color:"#5C4A32",lineHeight:1.7,margin:0,fontStyle:"italic"}}>{log.notes}</p></div>}
+          {log.notes&&<div style={S.card}><p style={S.st}>Заметки</p><p style={{fontSize:13,color:"#6B5A80",lineHeight:1.7,margin:0,fontStyle:"italic"}}>{log.notes}</p></div>}
         </div>
       </div>
     );
@@ -880,7 +885,7 @@ export default function App() {
                 if(!day)return<div key={i}/>;
                 const lp=day.log?getPhase(day.log.cycleDay||1):null;
                 const isToday=day.dateStr===getTodayKey();
-                return(<div key={i} onClick={()=>day.log&&setSelectedLog(day.log)} style={{textAlign:"center",padding:"5px 1px",borderRadius:6,background:lp?lp.color+"33":isToday?"#2C241615":"transparent",border:isToday?`1px solid ${T.text}`:"1px solid transparent",cursor:day.log?"pointer":"default",fontSize:11}}>
+                return(<div key={i} onClick={()=>day.log&&setSelectedLog(day.log)} style={{textAlign:"center",padding:"5px 1px",borderRadius:6,background:lp?lp.color+"33":isToday?"#1A102815":"transparent",border:isToday?`1px solid ${T.text}`:"1px solid transparent",cursor:day.log?"pointer":"default",fontSize:11}}>
                   {day.d}
                   {day.log?.moods?.length>0&&<div style={{fontSize:7,marginTop:1}}>{MOODS.find(m=>m.id===day.log.moods[0])?.emoji}</div>}
                 </div>);
@@ -934,13 +939,13 @@ export default function App() {
             ):insights.map((ins,i)=>(
               <div key={i} style={{...S.card,display:"flex",gap:12,alignItems:"flex-start",borderLeft:`3px solid ${T.accent}`}}>
                 <div style={{fontSize:24,flexShrink:0}}>{ins.emoji}</div>
-                <div style={{fontSize:13,color:"#5C4A32",lineHeight:1.6}}>{ins.text}</div>
+                <div style={{fontSize:13,color:"#6B5A80",lineHeight:1.6}}>{ins.text}</div>
               </div>
             ))}
             {logs.length>=5&&(
-              <div style={{...S.card,background:"#2C241608"}}>
+              <div style={{...S.card,background:"#1A102808"}}>
                 <p style={{...S.st,marginBottom:8}}>Что это значит?</p>
-                <p style={{fontSize:12,color:"#5C4A32",lineHeight:1.7,margin:0}}>
+                <p style={{fontSize:12,color:"#6B5A80",lineHeight:1.7,margin:0}}>
                   Паттерны помогают увидеть связь между циклом, схемами и состоянием. Поделись этими наблюдениями с терапевтом — это ценный материал для работы.
                 </p>
               </div>
@@ -1022,10 +1027,12 @@ export default function App() {
 
   return (
     <div style={S.app}>
+      <div key={screen} className="screen-enter">
       {screen === "home" && renderHome()}
       {screen === "practices" && renderPractices()}
       {screen === "support" && renderSupport()}
       {screen === "history" && renderHistory()}
+      </div>
       {/* Schema popup */}
       {schemaPopup && (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:100,display:"flex",alignItems:"flex-end"}} onClick={()=>setSchemaPopup(null)}>
@@ -1033,10 +1040,10 @@ export default function App() {
             <div style={{fontSize:32,marginBottom:8}}>{schemaPopup.emoji}</div>
             <div style={{fontSize:18,marginBottom:6}}>{schemaPopup.name}</div>
             <div style={{fontSize:11,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:10}}>{schemaPopup.domain}</div>
-            <div style={{fontSize:13,color:"#5C4A32",lineHeight:1.7,marginBottom:14}}>{schemaPopup.desc}</div>
+            <div style={{fontSize:13,color:"#6B5A80",lineHeight:1.7,marginBottom:14}}>{schemaPopup.desc}</div>
             <div style={{background:T.accent+"15",borderRadius:10,padding:12,marginBottom:16,border:`1px solid ${T.accent}44`}}>
               <div style={{fontSize:10,color:T.accent,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>Как проявляется</div>
-              <div style={{fontSize:12,color:"#5C4A32",lineHeight:1.6}}>
+              <div style={{fontSize:12,color:"#6B5A80",lineHeight:1.6}}>
                 {schemaPopup.id==="abandonment"&&"Ты цепляешься за отношения, боишься что тебя бросят, остро реагируешь на любые признаки ухода."}
                 {schemaPopup.id==="mistrust"&&"Ты ждёшь обмана, трудно доверяешь даже близким, часто видишь скрытые мотивы."}
                 {schemaPopup.id==="deprivation"&&"Чувство что тебя не понимают, не дают достаточно тепла — даже когда объективно всё хорошо."}
