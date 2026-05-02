@@ -10,12 +10,13 @@ import Breathing478 from "./components/Breathing478";
 
 const T = {
   bg: "transparent",
-  card: "rgba(255,255,255,0.72)",
-  border: "rgba(190,165,220,0.25)",
+  card: "#FFFFFF",
+  border: "#EDE8F5",
   text: "#1A1028",
-  muted: "#9B8AB0",
-  accent: "#9B6EC8",
-  accent2: "#FF7B6B",
+  muted: "#8B7AA0",
+  accent: "#7C3AED",
+  accent2: "#F97316",
+  soft: "#F3EEFF",
   font: "'Inter', system-ui, -apple-system, sans-serif",
 };
 
@@ -238,17 +239,17 @@ export default function App() {
   // ── Styles ────────────────────────────────────────────────────────────────
 
   const S = {
-    app: { minHeight: "100vh", background: T.bg, fontFamily: T.font, color: T.text, maxWidth: 430, margin: "0 auto" },
-    nav: { display: "flex", borderTop: `1px solid rgba(190,165,220,0.2)`, background: "rgba(255,255,255,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 20 },
-    navBtn: (a) => ({ flex: 1, padding: "10px 2px 12px", border: "none", background: "none", fontSize: 9, color: a ? T.accent : T.muted, cursor: "pointer", fontFamily: T.font, borderTop: a ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: a ? "600" : "400", transition: "color 0.2s" }),
-    content: { padding: "0 15px 90px" },
-    card: { background: "rgba(255,255,255,0.75)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 18, padding: 16, marginBottom: 12, border: "1px solid rgba(255,255,255,0.9)", boxShadow: "0 4px 24px rgba(120,80,180,0.08), 0 1px 4px rgba(0,0,0,0.04)" },
+    app: { minHeight: "100vh", background: T.bg, fontFamily: T.font, color: T.text },
+    nav: { display: "flex", borderTop: `1px solid ${T.border}`, background: "rgba(255,255,255,0.95)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 20 },
+    navBtn: (a) => ({ flex: 1, padding: "10px 2px 14px", border: "none", background: "none", fontSize: 9, color: a ? T.accent : T.muted, cursor: "pointer", fontFamily: T.font, borderTop: a ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: a ? "600" : "400" }),
+    content: { padding: "0 16px 100px" },
+    card: { background: T.card, borderRadius: 20, padding: "16px", marginBottom: 12, border: `1px solid ${T.border}`, boxShadow: "0 2px 12px rgba(124,58,237,0.06), 0 1px 3px rgba(0,0,0,0.05)" },
     st: { fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: T.muted, marginBottom: 10, marginTop: 0, fontWeight: "600" },
-    textarea: { width: "100%", padding: "12px", borderRadius: 12, border: `1px solid ${T.border}`, background: "rgba(255,255,255,0.6)", fontFamily: T.font, fontSize: 13, color: T.text, resize: "none", boxSizing: "border-box", outline: "none", transition: "border-color 0.2s, box-shadow 0.2s" },
-    chip: (a, color) => ({ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 11px", borderRadius: 20, border: `1.5px solid ${a ? color : T.border}`, background: a ? color+"28" : "rgba(255,255,255,0.5)", cursor: "pointer", fontSize: 11, marginRight: 5, marginBottom: 5, fontFamily: T.font, fontWeight: a ? "500" : "400", transition: "all 0.15s ease" }),
-    primaryBtn: (color) => ({ width: "100%", padding: "14px", background: color || `linear-gradient(135deg, ${T.accent} 0%, #7B4FAF 100%)`, color: "#fff", border: "none", borderRadius: 14, fontSize: 14, cursor: "pointer", fontFamily: T.font, letterSpacing: "0.02em", fontWeight: "500", boxShadow: `0 4px 16px ${color ? color+"55" : "rgba(155,110,200,0.35)"}` }),
-    ghostBtn: { width: "100%", padding: "12px", background: "rgba(255,255,255,0.55)", color: T.muted, border: `1px solid ${T.border}`, borderRadius: 14, fontSize: 13, cursor: "pointer", fontFamily: T.font, backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)" },
-    stepDot: (active, done) => ({ width: 8, height: 8, borderRadius: "50%", background: done ? T.accent : active ? T.text : T.border, transition: "all 0.3s", boxShadow: (done || active) ? `0 0 6px ${T.accent}88` : "none" }),
+    textarea: { width: "100%", padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${T.border}`, background: "#FAFAFA", fontFamily: T.font, fontSize: 14, color: T.text, resize: "none", boxSizing: "border-box", lineHeight: 1.6 },
+    chip: (a, color) => ({ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 20, border: `1.5px solid ${a ? color : T.border}`, background: a ? color+"18" : "#FAFAFA", cursor: "pointer", fontSize: 12, marginRight: 5, marginBottom: 5, fontFamily: T.font, fontWeight: a ? "600" : "400" }),
+    primaryBtn: (color) => ({ width: "100%", padding: "15px", background: color || `linear-gradient(135deg, #7C3AED 0%, #9F67F5 100%)`, color: "#fff", border: "none", borderRadius: 14, fontSize: 15, cursor: "pointer", fontFamily: T.font, fontWeight: "600", letterSpacing: "0.01em", boxShadow: color ? `0 4px 14px ${color}55` : "0 4px 20px rgba(124,58,237,0.4)" }),
+    ghostBtn: { width: "100%", padding: "13px", background: T.card, color: T.muted, border: `1.5px solid ${T.border}`, borderRadius: 14, fontSize: 13, cursor: "pointer", fontFamily: T.font, fontWeight: "500" },
+    stepDot: (active, done) => ({ width: 8, height: 8, borderRadius: "50%", background: done ? T.accent : active ? T.text : T.border, transition: "all 0.3s", boxShadow: (done || active) ? `0 0 8px ${T.accent}99` : "none" }),
   };
 
   const cycleColors = CYCLE_PHASES.flatMap(p => p.days.map(d => ({ day: d, color: p.color })));
@@ -263,29 +264,32 @@ export default function App() {
     return (
       <div>
         {/* Header */}
-        <div style={{ padding: "20px 15px 0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 14 }}>
+        <div style={{ background: `linear-gradient(160deg, ${phase.color}22 0%, transparent 100%)`, padding: "28px 16px 16px", borderBottom: `1px solid ${T.border}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
             <div>
-              <div style={{ fontSize: 24, lineHeight: 1 }}>{new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</div>
-              <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>{new Date().toLocaleDateString("ru-RU", { weekday: "long" })}</div>
+              <div style={{ fontSize: 28, fontWeight: "700", lineHeight: 1, letterSpacing: "-0.5px" }}>{new Date().toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</div>
+              <div style={{ fontSize: 13, color: T.muted, marginTop: 4, fontWeight: "400" }}>{new Date().toLocaleDateString("ru-RU", { weekday: "long" })}</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, color: phase.color, fontWeight: "bold" }}>{phase.name}</div>
-              <div style={{ fontSize: 22, color: T.text, lineHeight: 1 }}>День {cycleDay}</div>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: phase.color+"22", border: `1px solid ${phase.color}55`, borderRadius: 20, padding: "5px 12px" }}>
+                <div style={{ width: 7, height: 7, borderRadius: "50%", background: phase.color }} />
+                <div style={{ fontSize: 12, color: phase.color, fontWeight: "600" }}>{phase.name}</div>
+              </div>
+              <div style={{ fontSize: 26, fontWeight: "700", color: T.text, lineHeight: 1, marginTop: 6, letterSpacing: "-0.5px" }}>День {cycleDay}</div>
             </div>
           </div>
 
           {/* Phase bar */}
-          <div style={{ background: phase.color+"20", borderLeft: `3px solid ${phase.color}`, borderRadius: 8, padding: "10px 13px", marginBottom: 14 }}>
-            <div style={{ fontSize: 12, color: "#6B5A80", lineHeight: 1.6 }}>{phase.mentalComment}</div>
+          <div style={{ background: phase.color+"15", borderLeft: `3px solid ${phase.color}`, borderRadius: 10, padding: "10px 14px", marginBottom: 14 }}>
+            <div style={{ fontSize: 13, color: T.text, lineHeight: 1.6 }}>{phase.mentalComment}</div>
           </div>
 
           {/* Cycle strip */}
-          <div style={{ display: "flex", gap: 2, marginBottom: 8 }}>
+          <div style={{ display: "flex", gap: 3, marginBottom: 4 }}>
             {Array.from({length:28},(_,i)=>i+1).map(d => {
               const cc = cycleColors.find(x=>x.day===d);
               return <div key={d} onClick={() => { setCycleDay(d); save("cycleDay",d); }}
-                style={{ flex:1, height:4, borderRadius:2, background: cc?cc.color:T.border, opacity: d===cycleDay?1:0.3, cursor:"pointer", outline: d===cycleDay?`2px solid ${cc?.color}`:"none", outlineOffset:1 }} />;
+                style={{ flex:1, height: d===cycleDay?6:4, borderRadius:3, background: cc?cc.color:T.border, opacity: d===cycleDay?1:0.35, cursor:"pointer", transition:"all 0.2s" }} />;
             })}
           </div>
 
