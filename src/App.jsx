@@ -319,7 +319,7 @@ export default function App() {
         </div>
 
         {/* Step-by-step diary */}
-        <div style={{ padding: "0 15px" }}>
+        <div style={{ padding: "0 15px 90px" }}>
           {diaryStep === 4 && todayLog ? (
             // Done state
             <div style={{ ...S.card, textAlign:"center", background: "#7EC8B010", borderColor:"#7EC8B044" }}>
