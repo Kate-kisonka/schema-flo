@@ -817,7 +817,11 @@ export default function App() {
         </div>
         <div style={{display:"flex",gap:6,marginBottom:14}}>
           <button onClick={exportData} style={{flex:1,padding:"7px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,cursor:"pointer",fontFamily:T.font,fontSize:11,color:T.text}}>⬇ CSV</button>
-          <button onClick={exportJson} style={{flex:1,padding:"7px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,cursor:"pointer",fontFamily:T.font,fontSize:11,color:T.text}}>⬇ JSON (полный бэкап)</button>
+          <button onClick={exportJson} style={{flex:1,padding:"7px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,cursor:"pointer",fontFamily:T.font,fontSize:11,color:T.text}}>⬇ JSON (бэкап)</button>
+          <label style={{flex:1,padding:"7px",borderRadius:8,border:`1px solid ${T.accent}`,background:T.card,cursor:"pointer",fontFamily:T.font,fontSize:11,color:T.accent,textAlign:"center"}}>
+            ⬆ Восстановить
+            <input type="file" accept=".json" onChange={importJson} style={{display:"none"}} />
+          </label>
         </div>
 
         {historyTab==="list"&&(
@@ -952,11 +956,44 @@ export default function App() {
   };
 
   const exportJson = () => {
-    const data = { exported: getTodayKey(), logs, periodHistory, silenceLogs, aiSessions };
+    const data = {
+      exported: getTodayKey(),
+      logs, periodHistory, silenceLogs, aiSessions,
+      cycleDay, periodStartDate, periodActive,
+      silenceActive: load("silence_active", false),
+      silenceStartDate: load("silence_start_date", null),
+      silenceDays: load("silence_days", 0),
+    };
     const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href=url; a.download=`schema-flo-backup-${getTodayKey()}.json`;
     a.click(); URL.revokeObjectURL(url);
+  };
+
+  const importJson = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.logs) save("schema_logs", data.logs);
+        if (data.periodHistory) save("period_history", data.periodHistory);
+        if (data.silenceLogs) save("silence_logs", data.silenceLogs);
+        if (data.aiSessions) save("ai_sessions", data.aiSessions);
+        if (data.cycleDay != null) save("cycleDay", data.cycleDay);
+        if (data.periodStartDate) save("period_start_date", data.periodStartDate);
+        if (data.periodActive != null) save("period_active", data.periodActive);
+        if (data.silenceActive != null) save("silence_active", data.silenceActive);
+        if (data.silenceStartDate) save("silence_start_date", data.silenceStartDate);
+        if (data.silenceDays != null) save("silence_days", data.silenceDays);
+        window.location.reload();
+      } catch {
+        alert("Ошибка: файл повреждён или неверный формат.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   // ── ROOT ──────────────────────────────────────────────────────────────────
