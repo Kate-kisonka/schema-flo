@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  SCHEMAS, MOODS, CYCLE_PHASES, PHYSICAL_SYMPTOMS, DISCHARGE_TYPES,
+  SCHEMAS, MOODS, MOODS_BASIC, MOODS_EXTENDED, CYCLE_PHASES, PHYSICAL_SYMPTOMS, DISCHARGE_TYPES,
   DIGESTION, LIBIDO, NEEDS, NEED_LEVELS, EXERCISES, QUICK_STATES, DOMAINS,
 } from "./data";
 import { getPhase, getTodayKey, formatDate, getDayOfWeek, load, save } from "./utils";
@@ -49,6 +49,7 @@ export default function App() {
   const [aiInput, setAiInput] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [showQuickStates, setShowQuickStates] = useState(true);
+  const [showExtendedMoods, setShowExtendedMoods] = useState(false);
   const [aiSessions, setAiSessions] = useState(load("ai_sessions", []));
   const [currentSession, setCurrentSession] = useState(null);
   const [phaseExpanded, setPhaseExpanded] = useState(false);
@@ -353,14 +354,28 @@ export default function App() {
               {diaryStep === 0 && (
                 <div style={S.card}>
                   <p style={S.st}>Как ты сейчас? (выбери всё что есть)</p>
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:14 }}>
-                    {MOODS.map(m => (
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:8 }}>
+                    {MOODS_BASIC.map(m => (
                       <button key={m.id} style={{ padding:"8px 2px", borderRadius:10, border:`2px solid ${selectedMoods.includes(m.id)?m.color:T.border}`, background:selectedMoods.includes(m.id)?m.color+"22":"transparent", cursor:"pointer", textAlign:"center", fontFamily:T.font }} onClick={()=>toggleMood(m.id)}>
                         <div style={{fontSize:19}}>{m.emoji}</div>
                         <div style={{fontSize:9,color:"#5C4A32",marginTop:2}}>{m.label}</div>
                       </button>
                     ))}
                   </div>
+                  <button onClick={()=>setShowExtendedMoods(v=>!v)} style={{width:"100%",padding:"6px",borderRadius:8,border:`1px dashed ${T.border}`,background:"transparent",cursor:"pointer",fontFamily:T.font,fontSize:11,color:T.muted,marginBottom:8}}>
+                    {showExtendedMoods ? "▲ Скрыть полутона" : "▼ Полутона и оттенки"}
+                  </button>
+                  {showExtendedMoods && (
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:8 }}>
+                      {MOODS_EXTENDED.map(m => (
+                        <button key={m.id} style={{ padding:"8px 2px", borderRadius:10, border:`2px solid ${selectedMoods.includes(m.id)?m.color:T.border}`, background:selectedMoods.includes(m.id)?m.color+"22":"transparent", cursor:"pointer", textAlign:"center", fontFamily:T.font }} onClick={()=>toggleMood(m.id)}>
+                          <div style={{fontSize:19}}>{m.emoji}</div>
+                          <div style={{fontSize:9,color:"#5C4A32",marginTop:2}}>{m.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{marginBottom:6}}></div>
                   <p style={S.st}>Интенсивность · {intensity}/10</p>
                   <input type="range" min={1} max={10} value={intensity} onChange={e=>setIntensity(Number(e.target.value))} style={{width:"100%",accentColor:T.accent,marginBottom:4}} />
                   <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:T.muted}}><span>Лёгко</span><span>Невыносимо</span></div>
