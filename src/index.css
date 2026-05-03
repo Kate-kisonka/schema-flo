@@ -12,9 +12,10 @@ body {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #F4F4F5;
+  background: linear-gradient(145deg, #EDE8FF 0%, #FCF0F8 50%, #E6F7F3 100%);
+  background-attachment: fixed;
   min-height: 100vh;
-  color: #111118;
+  color: #1A1028;
 }
 
 #root {
@@ -22,5 +23,4 @@ body {
   max-width: 430px;
   margin: 0 auto;
   min-height: 100svh;
-  background: #F4F4F5;
 }

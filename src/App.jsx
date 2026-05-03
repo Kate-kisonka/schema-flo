@@ -9,16 +9,15 @@ import Breathing478 from "./components/Breathing478";
 // ─── THEME ─────────────────────────────────────────────────────────────────────
 
 const T = {
-  bg:      "#F4F4F5",
-  card:    "#FFFFFF",
-  border:  "#E4E4E7",
-  border2: "#D4D4D8",
-  text:    "#111118",
-  sub:     "#3F3F46",
-  muted:   "#71717A",
-  accent:  "#5E6AD2",
-  red:     "#E5484D",
-  font:    "'Inter', system-ui, -apple-system, sans-serif",
+  bg: "transparent",
+  card: "#FFFFFF",
+  border: "#EDE8F5",
+  text: "#1A1028",
+  muted: "#8B7AA0",
+  accent: "#7C3AED",
+  accent2: "#F97316",
+  soft: "#F3EEFF",
+  font: "'Inter', system-ui, -apple-system, sans-serif",
 };
 
 // ─── APP ───────────────────────────────────────────────────────────────────────
@@ -240,17 +239,17 @@ export default function App() {
   // ── Styles ────────────────────────────────────────────────────────────────
 
   const S = {
-    app:        { minHeight: "100vh", background: T.bg, fontFamily: T.font, color: T.text },
-    nav:        { display: "flex", borderTop: `1px solid ${T.border}`, background: T.card, position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 20 },
-    navBtn:     (a) => ({ flex: 1, padding: "10px 2px 14px", border: "none", background: "none", fontSize: 9, color: a ? T.accent : T.muted, cursor: "pointer", fontFamily: T.font, borderTop: a ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: a ? "600" : "400", letterSpacing: "0.02em" }),
-    content:    { padding: "0 16px 100px" },
-    card:       { background: T.card, borderRadius: 12, padding: "16px", marginBottom: 8, border: `1px solid ${T.border}` },
-    st:         { fontSize: 11, letterSpacing: "0.06em", textTransform: "uppercase", color: T.muted, marginBottom: 10, marginTop: 0, fontWeight: "500" },
-    textarea:   { width: "100%", padding: "10px 12px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.bg, fontFamily: T.font, fontSize: 14, color: T.text, resize: "none", boxSizing: "border-box", lineHeight: 1.6 },
-    chip:       (a, color) => ({ display: "inline-flex", alignItems: "center", gap: 4, padding: "5px 10px", borderRadius: 6, border: `1px solid ${a ? color : T.border}`, background: a ? color+"14" : T.card, cursor: "pointer", fontSize: 12, marginRight: 4, marginBottom: 4, fontFamily: T.font, fontWeight: a ? "500" : "400" }),
-    primaryBtn: (color) => ({ width: "100%", padding: "13px", background: color || T.accent, color: "#fff", border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: T.font, fontWeight: "500", letterSpacing: "0.01em" }),
-    ghostBtn:   { width: "100%", padding: "12px", background: T.card, color: T.sub, border: `1px solid ${T.border}`, borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: T.font, fontWeight: "400" },
-    stepDot:    (active, done) => ({ width: 7, height: 7, borderRadius: "50%", background: done ? T.accent : active ? T.text : T.border, transition: "background 0.2s" }),
+    app: { minHeight: "100vh", background: T.bg, fontFamily: T.font, color: T.text },
+    nav: { display: "flex", borderTop: `1px solid ${T.border}`, background: "rgba(255,255,255,0.95)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, zIndex: 20 },
+    navBtn: (a) => ({ flex: 1, padding: "10px 2px 14px", border: "none", background: "none", fontSize: 9, color: a ? T.accent : T.muted, cursor: "pointer", fontFamily: T.font, borderTop: a ? `2px solid ${T.accent}` : "2px solid transparent", fontWeight: a ? "600" : "400" }),
+    content: { padding: "0 16px 100px" },
+    card: { background: T.card, borderRadius: 20, padding: "16px", marginBottom: 12, border: `1px solid ${T.border}`, boxShadow: "0 2px 12px rgba(124,58,237,0.06), 0 1px 3px rgba(0,0,0,0.05)" },
+    st: { fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: T.muted, marginBottom: 10, marginTop: 0, fontWeight: "600" },
+    textarea: { width: "100%", padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${T.border}`, background: "#FAFAFA", fontFamily: T.font, fontSize: 14, color: T.text, resize: "none", boxSizing: "border-box", lineHeight: 1.6 },
+    chip: (a, color) => ({ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 20, border: `1.5px solid ${a ? color : T.border}`, background: a ? color+"18" : "#FAFAFA", cursor: "pointer", fontSize: 12, marginRight: 5, marginBottom: 5, fontFamily: T.font, fontWeight: a ? "600" : "400" }),
+    primaryBtn: (color) => ({ width: "100%", padding: "15px", background: color || `linear-gradient(135deg, #7C3AED 0%, #9F67F5 100%)`, color: "#fff", border: "none", borderRadius: 14, fontSize: 15, cursor: "pointer", fontFamily: T.font, fontWeight: "600", letterSpacing: "0.01em", boxShadow: color ? `0 4px 14px ${color}55` : "0 4px 20px rgba(124,58,237,0.4)" }),
+    ghostBtn: { width: "100%", padding: "13px", background: T.card, color: T.muted, border: `1.5px solid ${T.border}`, borderRadius: 14, fontSize: 13, cursor: "pointer", fontFamily: T.font, fontWeight: "500" },
+    stepDot: (active, done) => ({ width: 8, height: 8, borderRadius: "50%", background: done ? T.accent : active ? T.text : T.border, transition: "all 0.3s", boxShadow: (done || active) ? `0 0 8px ${T.accent}99` : "none" }),
   };
 
   const cycleColors = CYCLE_PHASES.flatMap(p => p.days.map(d => ({ day: d, color: p.color })));

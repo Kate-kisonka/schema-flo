@@ -1,38 +1,53 @@
 button {
-  transition: background 0.12s ease, opacity 0.12s ease, transform 0.1s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
-  font-family: 'Inter', system-ui, sans-serif;
+}
+
+button:hover {
+  transform: translateY(-2px);
 }
 
 button:active {
-  transform: scale(0.97);
-  opacity: 0.85;
+  transform: translateY(0) scale(0.97);
 }
 
 input[type="range"] {
-  accent-color: #5E6AD2;
-}
-
-textarea, input[type="text"] {
-  font-family: 'Inter', system-ui, sans-serif;
+  accent-color: #7C3AED;
+  height: 4px;
 }
 
 textarea:focus,
 input:focus {
-  border-color: #5E6AD2 !important;
-  box-shadow: 0 0 0 3px rgba(94, 106, 210, 0.12) !important;
+  border-color: rgba(124, 58, 237, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12) !important;
   outline: none !important;
 }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: #D4D4D8; border-radius: 2px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 3px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.25);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 .screen-enter {
-  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.card-enter {
+  animation: fadeIn 0.2s ease forwards;
 }
