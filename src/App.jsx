@@ -3,8 +3,11 @@ import {
   SCHEMAS, MOODS, MOODS_BASIC, MOODS_EXTENDED, CYCLE_PHASES, PHYSICAL_SYMPTOMS, DISCHARGE_TYPES,
   DIGESTION, LIBIDO, NEEDS, NEED_LEVELS, EXERCISES, QUICK_STATES, DOMAINS,
 } from "./data";
-import { getPhase, getTodayKey, formatDate, getDayOfWeek, load, save } from "./utils";
+import { getPhase, getTodayKey, formatDate, getDayOfWeek } from "./utils";
+import { dbDiary, dbCycle, dbPeriod, dbSilence, dbSilenceLogs, dbAISessions } from "./services/db";
+import { migrateFromLocalStorage } from "./services/migrate";
 import Breathing478 from "./components/Breathing478";
+import LoadingScreen from "./components/LoadingScreen";
 
 // ─── THEME ─────────────────────────────────────────────────────────────────────
 
@@ -23,19 +26,22 @@ const T = {
 // ─── APP ───────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  // Data loading
+  const [isLoading, setIsLoading] = useState(true);
+
   // Navigation
   const [screen, setScreen] = useState("home");
 
   // Cycle
-  const [cycleDay, setCycleDay] = useState(load("cycleDay", 14));
-  const [periodStartDate, setPeriodStartDate] = useState(load("period_start_date", null));
-  const [periodActive, setPeriodActive] = useState(load("period_active", false));
-  const [periodHistory, setPeriodHistory] = useState(load("period_history", []));
+  const [cycleDay, setCycleDay] = useState(14);
+  const [periodStartDate, setPeriodStartDate] = useState(null);
+  const [periodActive, setPeriodActive] = useState(false);
+  const [periodHistory, setPeriodHistory] = useState([]);
   const [showPeriodConfirm, setShowPeriodConfirm] = useState(false);
   const [showFlowQuestion, setShowFlowQuestion] = useState(false);
 
   // Daily diary — step-by-step
-  const [diaryStep, setDiaryStep] = useState(0); // 0=mood 1=body 2=schemas 3=notes 4=done
+  const [diaryStep, setDiaryStep] = useState(0);
   const [selectedMoods, setSelectedMoods] = useState([]);
   const [intensity, setIntensity] = useState(5);
   const [discharge, setDischarge] = useState(null);
@@ -48,7 +54,7 @@ export default function App() {
   const [completedExercises, setCompletedExercises] = useState([]);
 
   // Logs
-  const [logs, setLogs] = useState(load("schema_logs", []));
+  const [logs, setLogs] = useState([]);
 
   // AI / Support
   const [aiMessages, setAiMessages] = useState([]);
@@ -56,20 +62,20 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [showQuickStates, setShowQuickStates] = useState(true);
   const [showExtendedMoods, setShowExtendedMoods] = useState(false);
-  const [aiSessions, setAiSessions] = useState(load("ai_sessions", []));
+  const [aiSessions, setAiSessions] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
   const [phaseExpanded, setPhaseExpanded] = useState(false);
-  const [schemaPopup, setSchemaPopup] = useState(null); // schema object to show in popup
+  const [schemaPopup, setSchemaPopup] = useState(null);
 
   // Exercises
   const [activeExercise, setActiveExercise] = useState(null);
   const [exerciseTab, setExerciseTab] = useState("crisis");
 
   // Silence
-  const [silenceActive, setSilenceActive] = useState(load("silence_active", false));
-  const [silenceStartDate, setSilenceStartDate] = useState(load("silence_start_date", null));
-  const [silenceDays, setSilenceDays] = useState(load("silence_days", 14));
-  const [silenceLogs, setSilenceLogs] = useState(load("silence_logs", []));
+  const [silenceActive, setSilenceActive] = useState(false);
+  const [silenceStartDate, setSilenceStartDate] = useState(null);
+  const [silenceDays, setSilenceDays] = useState(14);
+  const [silenceLogs, setSilenceLogs] = useState([]);
   const [needsChecked, setNeedsChecked] = useState([]);
   const [morningNote, setMorningNote] = useState("");
   const [goodDone, setGoodDone] = useState("");
@@ -84,65 +90,164 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const phase = getPhase(cycleDay);
 
+  // Load all data from IndexedDB on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Migrate from localStorage if needed
+        await migrateFromLocalStorage();
+
+        // Load cycle state
+        const cycleState = await dbCycle.get();
+        if (cycleState) {
+          setCycleDay(cycleState.cycleDay || 14);
+          setPeriodStartDate(cycleState.periodStartDate || null);
+          setPeriodActive(cycleState.periodActive || false);
+          setPeriodHistory(cycleState.periodHistory || []);
+        }
+
+        // Load diary logs
+        const diaryLogs = await dbDiary.getAll();
+        setLogs(diaryLogs || []);
+
+        // Load silence state
+        const silenceState = await dbSilence.get();
+        if (silenceState) {
+          setSilenceActive(silenceState.silenceActive || false);
+          setSilenceStartDate(silenceState.silenceStartDate || null);
+          setSilenceDays(silenceState.silenceDays || 14);
+        }
+
+        // Load silence logs
+        const sLogs = await dbSilenceLogs.getAll();
+        setSilenceLogs(sLogs || []);
+
+        // Load AI sessions
+        const aSessions = await dbAISessions.getAll();
+        setAiSessions(aSessions || []);
+      } catch (err) {
+        console.error("Error loading data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
   // Auto-calc cycle day every time app opens
   useEffect(() => {
-    if (periodStartDate) {
+    if (periodStartDate && !isLoading) {
       const diff = Math.floor((new Date(getTodayKey()) - new Date(periodStartDate)) / 86400000) + 1;
       const day = Math.min(Math.max(diff, 1), 28);
-      setCycleDay(day); save("cycleDay", day);
+      setCycleDay(day);
+      dbCycle.save({
+        cycleDay: day,
+        periodStartDate,
+        periodActive,
+        periodHistory,
+      });
     }
-  }, []); // runs on mount - recalcs from stored periodStartDate
+  }, [isLoading]);
 
   // Auto-end period day 6
   useEffect(() => {
-    if (periodActive && cycleDay >= 6) { setPeriodActive(false); save("period_active", false); }
-  }, [cycleDay]);
+    if (periodActive && cycleDay >= 6 && !isLoading) {
+      setPeriodActive(false);
+      dbCycle.save({
+        cycleDay,
+        periodStartDate,
+        periodActive: false,
+        periodHistory,
+      });
+    }
+  }, [cycleDay, periodActive, periodStartDate, periodHistory, isLoading]);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [aiMessages]);
 
   // ── Period ────────────────────────────────────────────────────────────────
 
-  const startPeriod = (flowIntensity) => {
+  const startPeriod = async (flowIntensity) => {
     const today = getTodayKey();
     const cycleLength = periodStartDate ? Math.floor((new Date(today) - new Date(periodStartDate)) / 86400000) : null;
     const newHistory = [{ date: today, flowIntensity, cycleLength }, ...periodHistory];
-    setPeriodHistory(newHistory); setPeriodStartDate(today);
-    setCycleDay(1); setPeriodActive(true);
-    setShowPeriodConfirm(false); setShowFlowQuestion(false);
-    save("period_start_date", today); save("period_history", newHistory);
-    save("cycleDay", 1); save("period_active", true);
+    setPeriodHistory(newHistory);
+    setPeriodStartDate(today);
+    setCycleDay(1);
+    setPeriodActive(true);
+    setShowPeriodConfirm(false);
+    setShowFlowQuestion(false);
+    await dbCycle.save({
+      cycleDay: 1,
+      periodStartDate: today,
+      periodActive: true,
+      periodHistory: newHistory,
+    });
   };
 
-  const endPeriod = () => { setPeriodActive(false); save("period_active", false); };
+  const endPeriod = async () => {
+    setPeriodActive(false);
+    await dbCycle.save({
+      cycleDay,
+      periodStartDate,
+      periodActive: false,
+      periodHistory,
+    });
+  };
 
   // ── Save day ──────────────────────────────────────────────────────────────
 
-  const saveDay = () => {
+  const saveDay = async () => {
     const entry = {
-      date: getTodayKey(), cycleDay, phase: phase.name,
-      moods: selectedMoods, intensity, schemas: activeSchemas, notes,
-      discharge, digestion, symptoms, libido, symptomNotes,
+      date: getTodayKey(),
+      cycleDay,
+      phase: phase.name,
+      moods: selectedMoods,
+      intensity,
+      schemas: activeSchemas,
+      notes,
+      discharge,
+      digestion,
+      symptoms,
+      libido,
+      symptomNotes,
       exercises: completedExercises,
     };
     const newLogs = [entry, ...logs.filter(l => l.date !== getTodayKey())];
-    setLogs(newLogs); save("schema_logs", newLogs);
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
+    setLogs(newLogs);
+    await dbDiary.upsert(entry);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
     setDiaryStep(4);
   };
 
   // ── Silence ───────────────────────────────────────────────────────────────
 
-  const startSilence = () => {
+  const startSilence = async () => {
     const today = getTodayKey();
-    setSilenceStartDate(today); setSilenceActive(true);
-    save("silence_start_date", today); save("silence_days", silenceDays); save("silence_active", true);
+    setSilenceStartDate(today);
+    setSilenceActive(true);
+    await dbSilence.save({
+      silenceActive: true,
+      silenceStartDate: today,
+      silenceDays,
+    });
   };
 
-  const saveSilenceDay = () => {
-    const entry = { date: getTodayKey(), dayNum: silenceDayNum(), needsChecked, morningNote, goodDone, goodTomorrow };
+  const saveSilenceDay = async () => {
+    const entry = {
+      date: getTodayKey(),
+      dayNum: silenceDayNum(),
+      needsChecked,
+      morningNote,
+      goodDone,
+      goodTomorrow,
+    };
     const newLogs = [entry, ...silenceLogs.filter(l => l.date !== getTodayKey())];
-    setSilenceLogs(newLogs); save("silence_logs", newLogs);
-    setSaved(true); setTimeout(() => setSaved(false), 2000);
+    setSilenceLogs(newLogs);
+    await dbSilenceLogs.upsert(entry);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const silenceDayNum = () => {
@@ -152,7 +257,7 @@ export default function App() {
 
   // ── AI ────────────────────────────────────────────────────────────────────
 
-  const saveAiSession = (messages) => {
+  const saveAiSession = async (messages) => {
     const sessionId = currentSession || Date.now().toString();
     const session = {
       id: sessionId,
@@ -166,9 +271,9 @@ export default function App() {
       const updated = currentSession
         ? prev.map(s => s.id === currentSession ? session : s)
         : [session, ...prev];
-      save("ai_sessions", updated);
       return updated;
     });
+    await dbAISessions.upsert(session);
     setCurrentSession(sessionId);
   };
 
@@ -285,7 +390,15 @@ export default function App() {
           <div style={{ display: "flex", gap: 2 }}>
             {Array.from({length:28},(_,i)=>i+1).map(d => {
               const cc = cycleColors.find(x=>x.day===d);
-              return <div key={d} onClick={() => { setCycleDay(d); save("cycleDay",d); }}
+              return <div key={d} onClick={() => {
+                setCycleDay(d);
+                dbCycle.save({
+                  cycleDay: d,
+                  periodStartDate,
+                  periodActive,
+                  periodHistory,
+                });
+              }}
                 style={{ flex:1, height: d===cycleDay?5:3, borderRadius:2, background: cc?cc.color:T.border, opacity: d===cycleDay?1:0.4, cursor:"pointer", transition:"height 0.15s" }} />;
             })}
           </div>
@@ -979,35 +1092,73 @@ export default function App() {
   const exportJson = () => {
     const data = {
       exported: getTodayKey(),
-      logs, periodHistory, silenceLogs, aiSessions,
-      cycleDay, periodStartDate, periodActive,
-      silenceActive: load("silence_active", false),
-      silenceStartDate: load("silence_start_date", null),
-      silenceDays: load("silence_days", 0),
+      logs,
+      periodHistory,
+      silenceLogs,
+      aiSessions,
+      cycleDay,
+      periodStartDate,
+      periodActive,
+      silenceActive,
+      silenceStartDate,
+      silenceDays,
     };
-    const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href=url; a.download=`schema-flo-backup-${getTodayKey()}.json`;
-    a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `schema-flo-backup-${getTodayKey()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const importJson = (e) => {
+  const importJson = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        if (data.logs) save("schema_logs", data.logs);
-        if (data.periodHistory) save("period_history", data.periodHistory);
-        if (data.silenceLogs) save("silence_logs", data.silenceLogs);
-        if (data.aiSessions) save("ai_sessions", data.aiSessions);
-        if (data.cycleDay != null) save("cycleDay", data.cycleDay);
-        if (data.periodStartDate) save("period_start_date", data.periodStartDate);
-        if (data.periodActive != null) save("period_active", data.periodActive);
-        if (data.silenceActive != null) save("silence_active", data.silenceActive);
-        if (data.silenceStartDate) save("silence_start_date", data.silenceStartDate);
-        if (data.silenceDays != null) save("silence_days", data.silenceDays);
+        if (data.logs) {
+          for (const log of data.logs) {
+            await dbDiary.upsert(log);
+          }
+          setLogs(data.logs);
+        }
+        if (data.periodHistory || data.cycleDay != null || data.periodStartDate || data.periodActive != null) {
+          await dbCycle.save({
+            cycleDay: data.cycleDay ?? cycleDay,
+            periodStartDate: data.periodStartDate ?? periodStartDate,
+            periodActive: data.periodActive ?? periodActive,
+            periodHistory: data.periodHistory ?? periodHistory,
+          });
+          if (data.cycleDay != null) setCycleDay(data.cycleDay);
+          if (data.periodStartDate) setPeriodStartDate(data.periodStartDate);
+          if (data.periodActive != null) setPeriodActive(data.periodActive);
+          if (data.periodHistory) setPeriodHistory(data.periodHistory);
+        }
+        if (data.silenceLogs) {
+          for (const log of data.silenceLogs) {
+            await dbSilenceLogs.upsert(log);
+          }
+          setSilenceLogs(data.silenceLogs);
+        }
+        if (data.silenceActive != null || data.silenceStartDate || data.silenceDays != null) {
+          await dbSilence.save({
+            silenceActive: data.silenceActive ?? silenceActive,
+            silenceStartDate: data.silenceStartDate ?? silenceStartDate,
+            silenceDays: data.silenceDays ?? silenceDays,
+          });
+          if (data.silenceActive != null) setSilenceActive(data.silenceActive);
+          if (data.silenceStartDate) setSilenceStartDate(data.silenceStartDate);
+          if (data.silenceDays != null) setSilenceDays(data.silenceDays);
+        }
+        if (data.aiSessions) {
+          for (const session of data.aiSessions) {
+            await dbAISessions.upsert(session);
+          }
+          setAiSessions(data.aiSessions);
+        }
         window.location.reload();
       } catch {
         alert("Ошибка: файл повреждён или неверный формат.");
@@ -1025,6 +1176,10 @@ export default function App() {
     { id: "support", icon: "💬", label: "Поддержка" },
     { id: "history", icon: "📋", label: "История" },
   ];
+
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <div style={S.app}>
