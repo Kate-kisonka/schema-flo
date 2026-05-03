@@ -1,33 +1,43 @@
 import { useState, useEffect } from "react";
-import { KEYS } from "../constants/storage-keys";
-import { load, save, getTodayKey, parseLocalDate } from "../utils";
+import { getTodayKey, parseLocalDate } from "../utils";
+import { dbSilence, dbSilenceLogs } from "../services/db";
 
 export function useSilence() {
-  const [silenceActive,    setSilenceActiveRaw]    = useState(() => load(KEYS.SILENCE_ACTIVE, false));
-  const [silenceStartDate, setSilenceStartDateRaw] = useState(() => load(KEYS.SILENCE_START_DATE, null));
-  const [silenceDays,      setSilenceDaysRaw]      = useState(() => load(KEYS.SILENCE_DAYS, 14));
-  const [silenceLogs,      setSilenceLogsRaw]      = useState(() => load(KEYS.SILENCE_LOGS, []));
+  const [silenceActive,    setSilenceActiveRaw]    = useState(false);
+  const [silenceStartDate, setSilenceStartDateRaw] = useState(null);
+  const [silenceDays,      setSilenceDaysRaw]      = useState(14);
+  const [silenceLogs,      setSilenceLogsRaw]      = useState([]);
+  const [loaded,           setLoaded]              = useState(false);
 
   const [needsChecked,  setNeedsChecked]  = useState([]);
   const [morningNote,   setMorningNote]   = useState("");
   const [goodDone,      setGoodDone]      = useState("");
   const [goodTomorrow,  setGoodTomorrow]  = useState("");
 
-  useEffect(() => { save(KEYS.SILENCE_ACTIVE,    silenceActive); },    [silenceActive]);
-  useEffect(() => { save(KEYS.SILENCE_START_DATE, silenceStartDate); }, [silenceStartDate]);
-  useEffect(() => { save(KEYS.SILENCE_DAYS,       silenceDays); },      [silenceDays]);
-  useEffect(() => { save(KEYS.SILENCE_LOGS,       silenceLogs); },      [silenceLogs]);
-
-  // Предзаполнение из сегодняшнего лога тишины при монтировании
   useEffect(() => {
-    const todayLog = silenceLogs.find(l => l.date === getTodayKey());
-    if (todayLog) {
-      setNeedsChecked(todayLog.needsChecked || []);
-      setMorningNote(todayLog.morningNote || "");
-      setGoodDone(todayLog.goodDone || "");
-      setGoodTomorrow(todayLog.goodTomorrow || "");
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    Promise.all([dbSilence.get(), dbSilenceLogs.getAll()]).then(([state, logs]) => {
+      if (state) {
+        setSilenceActiveRaw(state.silenceActive ?? false);
+        setSilenceStartDateRaw(state.silenceStartDate ?? null);
+        setSilenceDaysRaw(state.silenceDays ?? 14);
+      }
+      const sorted = logs.sort((a, b) => b.date.localeCompare(a.date));
+      setSilenceLogsRaw(sorted);
+      const todayLog = sorted.find(l => l.date === getTodayKey());
+      if (todayLog) {
+        setNeedsChecked(todayLog.needsChecked || []);
+        setMorningNote(todayLog.morningNote || "");
+        setGoodDone(todayLog.goodDone || "");
+        setGoodTomorrow(todayLog.goodTomorrow || "");
+      }
+      setLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    dbSilence.save({ silenceActive, silenceStartDate, silenceDays });
+  }, [silenceActive, silenceStartDate, silenceDays, loaded]);
 
   const silenceDayNum = () => {
     if (!silenceStartDate) return 0;
@@ -50,6 +60,7 @@ export function useSilence() {
       needsChecked, morningNote, goodDone, goodTomorrow,
     };
     setSilenceLogsRaw(prev => [entry, ...prev.filter(l => l.date !== today)]);
+    dbSilenceLogs.upsert(entry);
   };
 
   const toggleNeed = (id) =>

@@ -1,20 +1,25 @@
 import { useState, useRef, useEffect } from "react";
-import { KEYS } from "../constants/storage-keys";
-import { load, save, getTodayKey } from "../utils";
+import { getTodayKey } from "../utils";
 import { sendAIMessage } from "../services/ai";
 import { SCHEMAS, MOODS, QUICK_STATES } from "../data";
+import { dbAISessions } from "../services/db";
 
 export function useAI({ cycleDay, phase, selectedMoods, activeSchemas, intensity, notes }) {
   const [aiMessages,      setAiMessages]      = useState([]);
   const [aiInput,         setAiInput]         = useState("");
   const [aiLoading,       setAiLoading]       = useState(false);
   const [showQuickStates, setShowQuickStates] = useState(true);
-  const [aiSessions,      setAiSessionsRaw]   = useState(() => load(KEYS.AI_SESSIONS, []));
+  const [aiSessions,      setAiSessionsRaw]   = useState([]);
   const [currentSession,  setCurrentSession]  = useState(null);
 
   const messagesEndRef = useRef(null);
 
-  useEffect(() => { save(KEYS.AI_SESSIONS, aiSessions); }, [aiSessions]);
+  useEffect(() => {
+    dbAISessions.getAll().then(sessions => {
+      setAiSessionsRaw(sessions.sort((a, b) => b.id.localeCompare(a.id)));
+    });
+  }, []);
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [aiMessages]);
 
   const buildContext = () =>
@@ -32,12 +37,13 @@ export function useAI({ cycleDay, phase, selectedMoods, activeSchemas, intensity
       title: messages[0]?.content?.slice(0, 60) || "Сессия",
       messages,
     };
-    setAiSessionsRaw(prev => {
-      return currentSession
+    setAiSessionsRaw(prev =>
+      currentSession
         ? prev.map(s => s.id === currentSession ? session : s)
-        : [session, ...prev];
-    });
+        : [session, ...prev]
+    );
     setCurrentSession(sessionId);
+    dbAISessions.upsert(session);
   };
 
   const sendToAI = async (overrideInput) => {
