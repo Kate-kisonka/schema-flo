@@ -2,9 +2,11 @@ name: ci
 
 on:
   push:
-    brashes:["**"]
+    branches:
+      - "**"
   pull_request:
-    brashes:["**"]
+    branches:
+      - "**"
 
 jobs:
   build-frontend:
@@ -29,4 +31,3 @@ jobs:
       - run: npm install
         working-directory: backend
       - run: docker build -t backend ./backend
-      

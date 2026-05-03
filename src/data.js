@@ -1,38 +1,144 @@
 export const SCHEMAS = [
-  { id: "abandonment", name: "Покинутость", domain: "Разлучение", emoji: "🌊", desc: "Страх что близкие уйдут или бросят" },
-  { id: "mistrust", name: "Недоверие", domain: "Разлучение", emoji: "🔒", desc: "Ожидание что другие причинят вред или обманут" },
-  { id: "deprivation", name: "Эмоциональная депривация", domain: "Разлучение", emoji: "🫙", desc: "Убеждение что никто не даст достаточно тепла и заботы" },
-  { id: "defectiveness", name: "Дефективность / Стыд", domain: "Разлучение", emoji: "💔", desc: "Ощущение себя дефектной, нелюбимой, хуже других" },
-  { id: "isolation", name: "Социальная изоляция", domain: "Разлучение", emoji: "🏝️", desc: "Чувство отчуждённости от других людей" },
-  { id: "dependence", name: "Зависимость", domain: "Автономия", emoji: "🪡", desc: "Неспособность справляться с повседневной жизнью без помощи" },
-  { id: "vulnerability", name: "Уязвимость", domain: "Автономия", emoji: "⚡", desc: "Страх что катастрофа случится в любой момент" },
-  { id: "enmeshment", name: "Слияние / Неразвитость Я", domain: "Автономия", emoji: "🌀", desc: "Чрезмерная эмоциональная вовлечённость с близким" },
-  { id: "failure", name: "Неудача", domain: "Автономия", emoji: "📉", desc: "Убеждение что ты неизбежно потерпишь неудачу" },
-  { id: "entitlement", name: "Привилегированность", domain: "Границы", emoji: "👑", desc: "Убеждение что правила не для тебя" },
-  { id: "self_control", name: "Недостаточный самоконтроль", domain: "Границы", emoji: "🌪️", desc: "Трудности с контролем импульсов и фрустрации" },
-  { id: "subjugation", name: "Подчинение", domain: "Другие", emoji: "🎭", desc: "Подавление своих желаний ради других" },
-  { id: "self_sacrifice", name: "Самопожертвование", domain: "Другие", emoji: "🕯️", desc: "Чрезмерная забота о других в ущерб себе" },
-  { id: "approval", name: "Поиск одобрения", domain: "Другие", emoji: "🪞", desc: "Потребность в постоянном одобрении и признании" },
-  { id: "negativity", name: "Негативизм", domain: "Сверхбдительность", emoji: "🌧️", desc: "Фокус на негативных сторонах жизни" },
-  { id: "inhibition", name: "Эмоциональное подавление", domain: "Сверхбдительность", emoji: "🧊", desc: "Подавление спонтанных эмоций и импульсов" },
-  { id: "standards", name: "Жёсткие стандарты", domain: "Сверхбдительность", emoji: "⚖️", desc: "Давление постоянно соответствовать высоким стандартам" },
-  { id: "punitiveness", name: "Карательность", domain: "Сверхбдительность", emoji: "🔨", desc: "Убеждение что люди должны быть строго наказаны за ошибки" },
+  {
+    id: "abandonment", name: "Покинутость", domain: "Разлучение", emoji: "🌊",
+    desc: "Страх что близкие уйдут или бросят",
+    manifestation: "Ты цепляешься за отношения, боишься что тебя бросят, остро реагируешь на любые признаки ухода.",
+  },
+  {
+    id: "mistrust", name: "Недоверие", domain: "Разлучение", emoji: "🔒",
+    desc: "Ожидание что другие причинят вред или обманут",
+    manifestation: "Ты ждёшь обмана, трудно доверяешь даже близким, часто видишь скрытые мотивы.",
+  },
+  {
+    id: "deprivation", name: "Эмоциональная депривация", domain: "Разлучение", emoji: "🫙",
+    desc: "Убеждение что никто не даст достаточно тепла и заботы",
+    manifestation: "Чувство что тебя не понимают, не дают достаточно тепла — даже когда объективно всё хорошо.",
+  },
+  {
+    id: "defectiveness", name: "Дефективность / Стыд", domain: "Разлучение", emoji: "💔",
+    desc: "Ощущение себя дефектной, нелюбимой, хуже других",
+    manifestation: "Глубокое чувство стыда, что ты «не такая», что если кто-то узнает тебя настоящую — отвергнет.",
+  },
+  {
+    id: "isolation", name: "Социальная изоляция", domain: "Разлучение", emoji: "🏝️",
+    desc: "Чувство отчуждённости от других людей",
+    manifestation: "Ощущение что ты принципиально другая, не вписываешься ни в какую группу.",
+  },
+  {
+    id: "dependence", name: "Зависимость", domain: "Автономия", emoji: "🪡",
+    desc: "Неспособность справляться с повседневной жизнью без помощи",
+    manifestation: "Трудно принимать решения самостоятельно, постоянно нужна поддержка и одобрение.",
+  },
+  {
+    id: "vulnerability", name: "Уязвимость", domain: "Автономия", emoji: "⚡",
+    desc: "Страх что катастрофа случится в любой момент",
+    manifestation: "Постоянная фоновая тревога что случится что-то плохое — болезнь, катастрофа, потеря.",
+  },
+  {
+    id: "enmeshment", name: "Слияние / Неразвитость Я", domain: "Автономия", emoji: "🌀",
+    desc: "Чрезмерная эмоциональная вовлечённость с близким",
+    manifestation: "Границы размыты с кем-то близким — ты живёшь его жизнью или чувствуешь что не имеешь своей.",
+  },
+  {
+    id: "failure", name: "Неудача", domain: "Автономия", emoji: "📉",
+    desc: "Убеждение что ты неизбежно потерпишь неудачу",
+    manifestation: "Убеждение что ты в итоге провалишься, что другие лучше, что твои достижения — случайность.",
+  },
+  {
+    id: "entitlement", name: "Привилегированность", domain: "Границы", emoji: "👑",
+    desc: "Убеждение что правила не для тебя",
+    manifestation: "Сложно принимать ограничения, раздражение когда правила распространяются на тебя.",
+  },
+  {
+    id: "self_control", name: "Недостаточный самоконтроль", domain: "Границы", emoji: "🌪️",
+    desc: "Трудности с контролем импульсов и фрустрации",
+    manifestation: "Трудно сдерживать эмоции, откладываешь дела, действуешь импульсивно.",
+  },
+  {
+    id: "subjugation", name: "Подчинение", domain: "Другие", emoji: "🎭",
+    desc: "Подавление своих желаний ради других",
+    manifestation: "Подавляешь свои желания ради других, боишься конфликта, говоришь «всё хорошо» когда плохо.",
+  },
+  {
+    id: "self_sacrifice", name: "Самопожертвование", domain: "Другие", emoji: "🕯️",
+    desc: "Чрезмерная забота о других в ущерб себе",
+    manifestation: "Ставишь чужие нужды выше своих, потом чувствуешь обиду и истощение.",
+  },
+  {
+    id: "approval", name: "Поиск одобрения", domain: "Другие", emoji: "🪞",
+    desc: "Потребность в постоянном одобрении и признании",
+    manifestation: "Постоянно нужно знать что тебя одобряют, трудно действовать без подтверждения извне.",
+  },
+  {
+    id: "negativity", name: "Негативизм", domain: "Сверхбдительность", emoji: "🌧️",
+    desc: "Фокус на негативных сторонах жизни",
+    manifestation: "Фокус автоматически идёт на плохое — угрозы, потери, то что может пойти не так.",
+  },
+  {
+    id: "inhibition", name: "Эмоциональное подавление", domain: "Сверхбдительность", emoji: "🧊",
+    desc: "Подавление спонтанных эмоций и импульсов",
+    manifestation: "Подавляешь эмоции, спонтанность, боишься потерять контроль или выглядеть слабой.",
+  },
+  {
+    id: "standards", name: "Жёсткие стандарты", domain: "Сверхбдительность", emoji: "⚖️",
+    desc: "Давление постоянно соответствовать высоким стандартам",
+    manifestation: "Постоянное давление делать лучше, критика себя за ошибки, никогда не достаточно хорошо.",
+  },
+  {
+    id: "punitiveness", name: "Карательность", domain: "Сверхбдительность", emoji: "🔨",
+    desc: "Убеждение что люди должны быть строго наказаны за ошибки",
+    manifestation: "Строгость к себе и другим за ошибки, трудно прощать, убеждение что наказание заслужено.",
+  },
 ];
 
-export const MOODS = [
-  { id: "calm", label: "Спокойствие", color: "#7EC8B0", emoji: "🌿" },
-  { id: "joy", label: "Радость", color: "#E9C46A", emoji: "✨" },
-  { id: "anxious", label: "Тревога", color: "#F4A261", emoji: "😰" },
-  { id: "fear", label: "Страх", color: "#7B68A0", emoji: "😨" },
-  { id: "sad", label: "Грусть", color: "#74B3CE", emoji: "🫧" },
-  { id: "tearful", label: "Плаксивость", color: "#89B4CC", emoji: "😢" },
-  { id: "irritable", label: "Раздражение", color: "#E8A838", emoji: "😤" },
-  { id: "angry", label: "Злость", color: "#E76F51", emoji: "🔥" },
-  { id: "rage", label: "Вспышка", color: "#C1392B", emoji: "💢" },
-  { id: "shame", label: "Стыд", color: "#B5838D", emoji: "🌹" },
-  { id: "numb", label: "Пустота", color: "#9B9B9B", emoji: "🌫️" },
-  { id: "overwhelmed", label: "Перегрузка", color: "#6D4C7D", emoji: "🌊" },
+// 8 базовых эмоций по кругу Плутчика
+export const MOODS_BASIC = [
+  { id: "joy",          label: "Радость",      color: "#E9C46A", emoji: "😊" },
+  { id: "trust",        label: "Доверие",      color: "#7EC8B0", emoji: "🤝" },
+  { id: "fear",         label: "Страх",        color: "#7B68A0", emoji: "😨" },
+  { id: "surprise",     label: "Удивление",    color: "#74B3CE", emoji: "😲" },
+  { id: "sad",          label: "Грусть",       color: "#89B4CC", emoji: "😢" },
+  { id: "disgust",      label: "Отвращение",   color: "#8D9E7A", emoji: "😑" },
+  { id: "angry",        label: "Злость",       color: "#E76F51", emoji: "😠" },
+  { id: "anticipation", label: "Ожидание",     color: "#F4A261", emoji: "🌅" },
 ];
+
+// Полутона: производные Плутчика + эмоции схема-терапии
+export const MOODS_EXTENDED = [
+  // Позитивные и смешанные
+  { id: "ecstasy",       label: "Восторг",        color: "#FFD166", emoji: "🌟" },
+  { id: "love",          label: "Любовь",          color: "#FFB3BA", emoji: "💗" },
+  { id: "optimism",      label: "Оптимизм",        color: "#A8D8A8", emoji: "🌱" },
+  { id: "interest",      label: "Интерес",         color: "#B8D4E8", emoji: "🔍" },
+  { id: "admiration",    label: "Восхищение",      color: "#6EC6A8", emoji: "✨" },
+  { id: "gratitude",     label: "Благодарность",   color: "#F8C8D4", emoji: "🌸" },
+  { id: "pride",         label: "Гордость",        color: "#C8A8E9", emoji: "💫" },
+  { id: "tenderness",    label: "Нежность",        color: "#FFD4E8", emoji: "💕" },
+  { id: "inspiration",   label: "Вдохновение",     color: "#B8E8D4", emoji: "🦋" },
+  // Негативные и полутона
+  { id: "anxious",       label: "Тревога",         color: "#F4A261", emoji: "😰" },
+  { id: "terror",        label: "Ужас",            color: "#5A4A8A", emoji: "😱" },
+  { id: "sorrow",        label: "Печаль",          color: "#A8C0D8", emoji: "🌧️" },
+  { id: "grief",         label: "Горе",            color: "#4A6080", emoji: "💔" },
+  { id: "irritable",     label: "Раздражение",     color: "#E8A838", emoji: "😤" },
+  { id: "rage",          label: "Ярость",          color: "#C1392B", emoji: "💢" },
+  { id: "contempt",      label: "Презрение",       color: "#7A8870", emoji: "😒" },
+  { id: "disappointment",label: "Разочарование",   color: "#C8B8C8", emoji: "😔" },
+  { id: "nostalgia",     label: "Ностальгия",      color: "#C8A8D8", emoji: "📸" },
+  { id: "longing",       label: "Тоска",           color: "#8B9BC0", emoji: "🌙" },
+  { id: "hurt",          label: "Обида",           color: "#89ABE3", emoji: "💙" },
+  { id: "embarrassment", label: "Смущение",        color: "#F4C8A8", emoji: "😳" },
+  { id: "confusion",     label: "Растерянность",   color: "#B8C8E8", emoji: "🌀" },
+  // Эмоции схема-терапии
+  { id: "shame",         label: "Стыд",            color: "#B5838D", emoji: "🌹" },
+  { id: "guilt",         label: "Вина",            color: "#8B8BA8", emoji: "🌑" },
+  { id: "loneliness",    label: "Одиночество",     color: "#9AB8D8", emoji: "🕯️" },
+  { id: "numb",          label: "Пустота",         color: "#9B9B9B", emoji: "🌫️" },
+  { id: "overwhelmed",   label: "Перегрузка",      color: "#6D4C7D", emoji: "🌊" },
+];
+
+// Объединённый массив — для поиска по id в сохранённых записях
+export const MOODS = [...MOODS_BASIC, ...MOODS_EXTENDED];
 
 export const CYCLE_PHASES = [
   {
