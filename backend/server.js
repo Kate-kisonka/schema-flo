@@ -27,7 +27,7 @@ app.get("/health", async (_req, res) => {
 });
 
 //сохранение сообщений в базу
-app.post("/api/chat", (req, res) => { //реагируем на запрос
+app.post("/api/chat", async (req, res) => { //реагируем на запрос
   const { messages, context } = req.body;//данные от пользака которые пришли в двух полях
 
   if (!Array.isArray(messages)) {//проверяем сообщение, если это не массив, ответ ошибкой 400

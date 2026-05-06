@@ -6,7 +6,8 @@ const pool = new Pool({
   user: 'postgres',
   host: 'localhost',
   database: 'new_base',
-  password: process.env.DB_PASSWORD,
+  password: process.env.DB_PASSWORD,//проверить пароль в файле env
+  
   port: 5432,
   //прописали атрибуты, порт- стандартный для постгрескл
 });
