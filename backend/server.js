@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-
+import pool from "../src/services/db";
 dotenv.config();
 
 const app = express();
@@ -14,29 +14,43 @@ const ALLOWED_ORIGINS = [
 
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
-
+//здоровье
 app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+  try{
+    await pool.query('SELECT NOW()')
+    res.json({ status: "ok", db: "connected" });
+ }   catch (err) {
+  res.status(500).json({ status: "error", message: err.message });
+ }
 });
 
-// AI proxy — принимает массив messages + системный контекст
-// Когда придёт ключ: заменить тело на вызов Anthropic SDK
+//сохранение сообщений в базу
 app.post("/api/chat", (req, res) => {
   const { messages, context } = req.body;
 
   if (!Array.isArray(messages)) {
     return res.status(400).json({ error: "messages must be an array" });
+    }
+      
+  try {
+    const lastMessage = messages[messages.length - 1];
+    await pool.query(
+      "INSERT INTO chat_history (role, content) VALUES ($1, $2)",
+      [lastMessage.role, lastMessage.conten]
+    );
+
+    console.log("Сообщение сохранено в бд");
+
+    //заглушка для ии
+    
+    res.json({ reply: "Я пока заглушка, но очень хочу тебе помочь 🤖" });
+  
+  } catch (err) {
+    console.error("Ошибка БД:", err.message);
+    res.status(500).json({ error: "Не удалось сохранить в базу данных" });
+
   }
-
-  console.log("Получено сообщений:", messages.length, "| контекст:", context?.length ?? 0, "симв.");
-
-  // TODO: заменить на вызов Anthropic API
-  // const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_KEY });
-  // const response = await anthropic.messages.create({ ... });
-  // return res.json({ reply: response.content[0].text });
-
-  res.json({ reply: "Я пока заглушка, но очень хочу тебе помочь 🤖" });
-});
+  });
 
 app.listen(PORT, () => {
   console.log(`Backend запущен на http://localhost:${PORT}`);
