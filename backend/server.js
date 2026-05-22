@@ -1,7 +1,7 @@
 import express from "express";//создает веб-сервер
 import cors from "cors";//контроль кто может обращаться к серверу
 import dotenv from "dotenv"; //читает секреты из файла env
-import pool from "../src/services/db";//менеджер подклю к бд
+import pool from "../src/services/db.js";//менеджер подклю к бд
 dotenv.config(); //загружает секреты из файла
 
 const app = express();
