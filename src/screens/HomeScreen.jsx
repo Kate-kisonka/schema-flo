@@ -17,7 +17,7 @@ const S = {
   stepDot:    (active, done) => ({ width: 7, height: 7, borderRadius: "50%", background: done ? T.accent : active ? T.text : T.border, transition: "background 0.2s" }),
 };
 
-export default function HomeScreen({ cycle, diary, onGetAIRecommendations, onSchemaPopup }) {
+export default function HomeScreen({ cycle, diary, onSchemaPopup }) {
   const {
     cycleDay, setCycleDay,
     periodActive, showPeriodConfirm, setShowPeriodConfirm,
@@ -264,12 +264,7 @@ export default function HomeScreen({ cycle, diary, onGetAIRecommendations, onSch
                 <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4}
                   placeholder="Что происходит? Что заметила? Можно просто поток мыслей..."
                   style={{ ...S.textarea, marginBottom: 10 }} />
-                {notes.trim().length > 20 && (
-                  <button onClick={onGetAIRecommendations}
-                    style={{ width: "100%", padding: "9px", borderRadius: 8, border: `1px solid ${T.accent}66`, background: T.accent + "10", color: T.accent, cursor: "pointer", fontFamily: T.font, fontSize: 12, marginBottom: 10 }}>
-                    ✨ Получить рекомендации по заметке
-                  </button>
-                )}
+
                 <div style={{ display: "flex", gap: 8 }}>
                   <button style={{ ...S.ghostBtn, flex: 1 }} onClick={() => setDiaryStep(2)}>← Назад</button>
                   <button style={{ ...S.primaryBtn(saved ? T.green : T.text), flex: 2 }} onClick={handleSaveDay}>
