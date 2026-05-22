@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { T } from "./constants/theme";
-import { getPhase, getTodayKey } from "./utils";
+import { getTodayKey } from "./utils";
 import { migrateFromLocalStorage } from "./services/migrate";
 import { useCycle } from "./hooks/useCycle";
 import { useDiary } from "./hooks/useDiary";
@@ -35,8 +35,6 @@ export default function App() {
   const diary = useDiary();
   const silence = useSilence();
   const history = useHistory(diary.logs);
-  const phase = getPhase(cycle.cycleDay);
-
   const handleNavigate = (id) => {
     setScreen(id);
     setSelectedLog(null);
