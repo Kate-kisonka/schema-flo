@@ -4,11 +4,10 @@ import { T } from "../constants/theme";
 const NAV_ITEMS = [
   { id: "home",      icon: "🌙", label: "День"      },
   { id: "practices", icon: "🌿", label: "Практики"  },
-  { id: "support",   icon: "💬", label: "Поддержка" },
   { id: "history",   icon: "📋", label: "История"   },
 ];
 
-export default function NavBar({ screen, onNavigate }) {
+export default function NavBar({ screen, onNavigate, onLogout }) {
   return (
     <div style={{
       display: "flex", borderTop: `1px solid ${T.border}`, background: T.card,
@@ -31,6 +30,17 @@ export default function NavBar({ screen, onNavigate }) {
           </button>
         );
       })}
+
+      {/* Кнопка выхода */}
+      <button onClick={onLogout}
+        style={{
+          flex: 1, padding: "10px 2px 14px", border: "none", background: "none",
+          fontSize: 9, color: T.muted, cursor: "pointer", fontFamily: T.font,
+          borderTop: "2px solid transparent", letterSpacing: "0.02em",
+        }}>
+        <div style={{ fontSize: 16 }}>🚪</div>
+        <div style={{ marginTop: 1 }}>Выйти</div>
+      </button>
     </div>
   );
 }
