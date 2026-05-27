@@ -10,9 +10,20 @@ function loadFromLS(key, fallback) {
   }
 }
 
-export async function migrateFromLocalStorage() {
-  const migrated = localStorage.getItem("idb_migrated");
-  if (migrated) return; // Already migrated
+export async function migrateFromLocalStorage(userId) {
+  if (!userId) return;
+
+  const legacyMigrated = localStorage.getItem("idb_migrated");
+  if (legacyMigrated) return; // Already migrated by an older build.
+
+  const migrationOwner = localStorage.getItem("legacy_migration_owner");
+  if (migrationOwner && migrationOwner !== userId) return;
+
+  const migratedKey = `idb_migrated:${userId}`;
+  const migrated = localStorage.getItem(migratedKey);
+  if (migrated) return; // Already migrated for this account.
+
+  localStorage.setItem("legacy_migration_owner", userId);
 
   // Migrate diary logs
   const logs = loadFromLS("schema_logs", []);
@@ -70,5 +81,5 @@ export async function migrateFromLocalStorage() {
   }
 
   // Mark migration as complete
-  localStorage.setItem("idb_migrated", "1");
+  localStorage.setItem(migratedKey, "1");
 }

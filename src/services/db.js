@@ -1,7 +1,22 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const TOKEN_KEY = "auth_token";
+const USER_KEY = "auth_user";
 
 function getToken() {
-  return localStorage.getItem("auth_token") || localStorage.getItem("accessToken") || "";
+  return localStorage.getItem(TOKEN_KEY) || localStorage.getItem("accessToken") || "";
+}
+
+function saveSession(data) {
+  localStorage.setItem(TOKEN_KEY, data.accessToken);
+  localStorage.removeItem("accessToken");
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  return data.user;
+}
+
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem(USER_KEY);
 }
 
 async function api(path, options = {}) {
@@ -12,10 +27,65 @@ async function api(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    const error = new Error(data.error || `HTTP ${res.status}`);
+    error.status = res.status;
+    error.data = data;
+    if (res.status === 401) clearSession();
+    throw error;
+  }
   if (res.status === 204) return null;
   return res.json();
 }
+
+export const authApi = {
+  getStoredUser() {
+    try {
+      const raw = localStorage.getItem(USER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+  isAuthenticated() {
+    return Boolean(getToken());
+  },
+  async me() {
+    const data = await api("/api/auth/me");
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    return data.user;
+  },
+  async register(email, password) {
+    return api("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  },
+  async login(email, password) {
+    const data = await api("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    return saveSession(data);
+  },
+  async verifyEmail(email, code) {
+    const data = await api("/api/auth/verify-email", {
+      method: "POST",
+      body: JSON.stringify({ email, code }),
+    });
+    return saveSession(data);
+  },
+  async resendCode(email) {
+    return api("/api/auth/resend-code", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+  logout() {
+    clearSession();
+  },
+};
 
 function toDiaryClient(item) {
   return {

@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { pool, query } from "./db.js";
 
 dotenv.config();
@@ -13,9 +14,64 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "https://schema-flo.vercel.app"];
+const CODE_TTL_MINUTES = 10;
 
 app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json({ limit: "2mb" }));
+
+function normalizeEmail(email) {
+  return String(email || "").toLowerCase().trim();
+}
+
+function createVerificationCode() {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+function hashVerificationCode(code) {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+async function sendVerificationEmail(email, code) {
+  if (process.env.RESEND_API_KEY) {
+    const from = process.env.EMAIL_FROM || "Schema Flo <noreply@schema-flo.app>";
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: email,
+        subject: "Код входа в Schema Flo",
+        text: `Ваш код подтверждения Schema Flo: ${code}. Он действует ${CODE_TTL_MINUTES} минут.`,
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => "");
+      throw new Error(`Email provider failed: ${response.status} ${message}`);
+    }
+    return;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[auth] verification code for ${email}: ${code}`);
+    return;
+  }
+
+  throw new Error("Email provider is not configured");
+}
+
+async function saveAndSendVerificationCode(userId, email) {
+  const code = createVerificationCode();
+  await query(
+    `INSERT INTO email_verification_codes (user_id, code_hash, expires_at)
+     VALUES ($1, $2, now() + ($3 || ' minutes')::interval)`,
+    [userId, hashVerificationCode(code), CODE_TTL_MINUTES]
+  );
+  await sendVerificationEmail(email, code);
+}
 
 function isIsoDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -61,36 +117,128 @@ app.post("/api/auth/register", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "email and password are required" });
   if (password.length < 8) return res.status(400).json({ error: "password must be at least 8 characters" });
+  const normalizedEmail = normalizeEmail(email);
 
   try {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await query(
       "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email",
-      [email.toLowerCase().trim(), passwordHash]
+      [normalizedEmail, passwordHash]
     );
     const user = result.rows[0];
-    res.status(201).json({ user, accessToken: signToken(user) });
+    await saveAndSendVerificationCode(user.id, user.email);
+    res.status(201).json({ user, verificationRequired: true });
   } catch (err) {
-    if (err.code === "23505") return res.status(409).json({ error: "Email already exists" });
+    if (err.code === "23505") {
+      const existing = await query(
+        "SELECT id, email, password_hash, email_verified_at FROM users WHERE lower(email) = $1",
+        [normalizedEmail]
+      );
+      const user = existing.rows[0];
+      if (user && !user.email_verified_at && await bcrypt.compare(password, user.password_hash)) {
+        await saveAndSendVerificationCode(user.id, user.email);
+        return res.json({ user: { id: user.id, email: user.email }, verificationRequired: true });
+      }
+      return res.status(409).json({ error: "Email already exists" });
+    }
+    console.error("[auth] registration failed", err);
     res.status(500).json({ error: "Registration failed" });
+  }
+});
+
+app.post("/api/auth/resend-code", async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  if (!email) return res.status(400).json({ error: "email is required" });
+
+  try {
+    const result = await query("SELECT id, email, email_verified_at FROM users WHERE lower(email) = $1", [email]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (user.email_verified_at) return res.status(409).json({ error: "Email already verified" });
+
+    await saveAndSendVerificationCode(user.id, user.email);
+    res.json({ verificationRequired: true });
+  } catch (err) {
+    console.error("[auth] resend code failed", err);
+    res.status(500).json({ error: "Failed to send verification code" });
+  }
+});
+
+app.post("/api/auth/verify-email", async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const code = String(req.body.code || "").trim();
+  if (!email || !/^\d{6}$/.test(code)) return res.status(400).json({ error: "email and 6-digit code are required" });
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const userResult = await client.query(
+      "SELECT id, email FROM users WHERE lower(email) = $1 FOR UPDATE",
+      [email]
+    );
+    const user = userResult.rows[0];
+    if (!user) {
+      await client.query("rollback");
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const codeResult = await client.query(
+      `SELECT id FROM email_verification_codes
+       WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL AND expires_at > now()
+       ORDER BY created_at DESC LIMIT 1`,
+      [user.id, hashVerificationCode(code)]
+    );
+    if (codeResult.rowCount === 0) {
+      await client.query("rollback");
+      return res.status(401).json({ error: "Invalid or expired code" });
+    }
+
+    await client.query("UPDATE email_verification_codes SET used_at = now() WHERE id = $1", [codeResult.rows[0].id]);
+    await client.query("UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1", [user.id]);
+    await client.query("commit");
+
+    res.json({ user: { id: user.id, email: user.email }, accessToken: signToken(user) });
+  } catch (err) {
+    await client.query("rollback");
+    console.error("[auth] verify email failed", err);
+    res.status(500).json({ error: "Email verification failed" });
+  } finally {
+    client.release();
   }
 });
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "email and password are required" });
+  const normalizedEmail = normalizeEmail(email);
 
   try {
-    const result = await query("SELECT id, email, password_hash FROM users WHERE email = $1", [email.toLowerCase().trim()]);
+    const result = await query("SELECT id, email, password_hash, email_verified_at FROM users WHERE lower(email) = $1", [normalizedEmail]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: "Invalid credentials" });
+    if (!user.email_verified_at) {
+      await saveAndSendVerificationCode(user.id, user.email);
+      return res.status(403).json({ error: "Email verification required", verificationRequired: true });
+    }
 
     res.json({ user: { id: user.id, email: user.email }, accessToken: signToken(user) });
-  } catch {
+  } catch (err) {
+    console.error("[auth] login failed", err);
     res.status(500).json({ error: "Login failed" });
+  }
+});
+
+app.get("/api/auth/me", auth, async (req, res) => {
+  try {
+    const result = await query("SELECT id, email, email_verified_at FROM users WHERE id = $1", [req.user.id]);
+    const user = result.rows[0];
+    if (!user || !user.email_verified_at) return res.status(401).json({ error: "Unauthorized" });
+    res.json({ user: { id: user.id, email: user.email } });
+  } catch {
+    res.status(500).json({ error: "Failed to load user" });
   }
 });
 
