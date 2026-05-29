@@ -1,22 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
-const TOKEN_KEY = "auth_token";
-const USER_KEY = "auth_user";
 
 function getToken() {
-  return localStorage.getItem(TOKEN_KEY) || localStorage.getItem("accessToken") || "";
-}
-
-function saveSession(data) {
-  localStorage.setItem(TOKEN_KEY, data.accessToken);
-  localStorage.removeItem("accessToken");
-  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-  return data.user;
-}
-
-function clearSession() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem(USER_KEY);
+  return localStorage.getItem("auth_token") || "";
 }
 
 async function api(path, options = {}) {
@@ -27,65 +12,10 @@ async function api(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    const error = new Error(data.error || `HTTP ${res.status}`);
-    error.status = res.status;
-    error.data = data;
-    if (res.status === 401) clearSession();
-    throw error;
-  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   if (res.status === 204) return null;
   return res.json();
 }
-
-export const authApi = {
-  getStoredUser() {
-    try {
-      const raw = localStorage.getItem(USER_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  },
-  isAuthenticated() {
-    return Boolean(getToken());
-  },
-  async me() {
-    const data = await api("/api/auth/me");
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-    return data.user;
-  },
-  async register(email, password) {
-    return api("/api/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-  },
-  async login(email, password) {
-    const data = await api("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    return saveSession(data);
-  },
-  async verifyEmail(email, code) {
-    const data = await api("/api/auth/verify-email", {
-      method: "POST",
-      body: JSON.stringify({ email, code }),
-    });
-    return saveSession(data);
-  },
-  async resendCode(email) {
-    return api("/api/auth/resend-code", {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    });
-  },
-  logout() {
-    clearSession();
-  },
-};
 
 function toDiaryClient(item) {
   return {
@@ -105,9 +35,12 @@ export const dbDiary = {
     const data = await api("/api/diary?limit=500&offset=0");
     return (data.items || []).map(toDiaryClient);
   },
+
+  // Используем GET /api/diary?date=... вместо загрузки всех записей (фикс N+1)
   async upsert(entry) {
-    const all = await this.getAll();
-    const existing = all.find((x) => x.date === entry.date);
+    const data = await api(`/api/diary?date=${encodeURIComponent(entry.date)}`);
+    const existing = (data.items || [])[0];
+
     const payload = {
       entryDate: entry.date,
       moodIds: entry.moods || [],
@@ -117,6 +50,7 @@ export const dbDiary = {
       cycleDay: entry.cycleDay ?? null,
       phaseKey: entry.phase || null,
     };
+
     if (existing?.id) {
       return api(`/api/diary/${existing.id}`, { method: "PATCH", body: JSON.stringify(payload) });
     }
@@ -134,19 +68,27 @@ export const dbCycle = {
       cycleDay: state?.cycle_day ?? 14,
       periodStartDate: state?.period_start_date ?? null,
       periodActive: state?.period_active ?? false,
-      periodHistory: (history.items || []).map((x) => ({ date: x.period_start_date, cycleLength: x.cycle_length, flowIntensity: x.notes || "" })),
+      periodHistory: (history.items || []).map((x) => ({
+        date: x.period_start_date,
+        cycleLength: x.cycle_length,
+        flowIntensity: x.notes || "",
+      })),
     };
   },
-  async save(state) {
+
+  // Фикс: не затираем silence-данные — читаем текущее состояние перед записью
+  async save(cycleState) {
+    const existing = await api("/api/state").catch(() => null);
     return api("/api/state", {
       method: "PUT",
       body: JSON.stringify({
-        cycleDay: state.cycleDay ?? null,
-        periodStartDate: state.periodStartDate ?? null,
-        periodActive: !!state.periodActive,
-        silenceActive: false,
-        silenceStartDate: null,
-        silenceDays: 14,
+        cycleDay: cycleState.cycleDay ?? null,
+        periodStartDate: cycleState.periodStartDate ?? null,
+        periodActive: !!cycleState.periodActive,
+        // Сохраняем silence-данные как были
+        silenceActive: existing?.silence_active ?? false,
+        silenceStartDate: existing?.silence_start_date ?? null,
+        silenceDays: existing?.silence_days ?? 14,
       }),
     });
   },
@@ -156,7 +98,11 @@ export const dbPeriod = {
   async add(entry) {
     return api("/api/cycle", {
       method: "POST",
-      body: JSON.stringify({ periodStartDate: entry.date, cycleLength: entry.cycleLength ?? null, notes: entry.flowIntensity || "" }),
+      body: JSON.stringify({
+        periodStartDate: entry.date,
+        cycleLength: entry.cycleLength ?? null,
+        notes: entry.flowIntensity || "",
+      }),
     });
   },
 };
@@ -170,17 +116,20 @@ export const dbSilence = {
       silenceDays: state?.silence_days ?? 14,
     };
   },
-  async save(state) {
+
+  // Фикс: не затираем cycle-данные — читаем текущее состояние перед записью
+  async save(silenceState) {
     const existing = await api("/api/state").catch(() => null);
     return api("/api/state", {
       method: "PUT",
       body: JSON.stringify({
-        cycleDay: existing?.cycle_day ?? 14,
+        // Сохраняем cycle-данные как были
+        cycleDay: existing?.cycle_day ?? null,
         periodStartDate: existing?.period_start_date ?? null,
         periodActive: existing?.period_active ?? false,
-        silenceActive: !!state.silenceActive,
-        silenceStartDate: state.silenceStartDate ?? null,
-        silenceDays: state.silenceDays ?? 14,
+        silenceActive: !!silenceState.silenceActive,
+        silenceStartDate: silenceState.silenceStartDate ?? null,
+        silenceDays: silenceState.silenceDays ?? 14,
       }),
     });
   },
@@ -191,8 +140,17 @@ export const dbSilenceLogs = {
     const data = await api("/api/practices").catch(() => ({ items: [] }));
     return (data.items || [])
       .filter((x) => x.practice_type === "silence")
-      .map((x) => ({ date: new Date(x.logged_at).toISOString().slice(0, 10), dayNum: null, needsChecked: [], morningNote: "", goodDone: "", goodTomorrow: "" }));
+      .map((x) => ({
+        date: new Date(x.logged_at).toISOString().slice(0, 10),
+        // Поля ниже не хранятся в БД — заглушки для совместимости с UI
+        dayNum: null,
+        needsChecked: [],
+        morningNote: "",
+        goodDone: "",
+        goodTomorrow: "",
+      }));
   },
+
   async upsert(entry) {
     return api("/api/practices", {
       method: "POST",
@@ -201,6 +159,7 @@ export const dbSilenceLogs = {
   },
 };
 
+// AI-сессии больше не используются, оставлены для совместимости с migrate.js
 export const dbAISessions = {
   async getAll() { return []; },
   async upsert(session) { return session; },

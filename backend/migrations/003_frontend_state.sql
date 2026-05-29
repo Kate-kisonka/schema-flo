@@ -1,3 +1,4 @@
+-- User state table: хранит текущее состояние цикла и практики тишины
 create table if not exists user_states (
   user_id uuid primary key references users(id) on delete cascade,
   cycle_day int,

@@ -1,6 +1,9 @@
-import { dbDiary, dbCycle, dbPeriod, dbSilence, dbSilenceLogs, dbAISessions } from "./db";
+// Одноразовая миграция: перекидываем данные из localStorage в PostgreSQL
+// Вызывается из App.jsx после подтверждения авторизации
 
-// Helper to safely load from localStorage
+const MIGRATED_KEY = "pg_migrated";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
 function loadFromLS(key, fallback) {
   try {
     const v = localStorage.getItem(key);
@@ -10,76 +13,48 @@ function loadFromLS(key, fallback) {
   }
 }
 
-export async function migrateFromLocalStorage(userId) {
-  if (!userId) return;
+export async function migrateFromLocalStorage() {
+  // Уже мигрировали — выходим
+  if (localStorage.getItem(MIGRATED_KEY)) return;
 
-  const legacyMigrated = localStorage.getItem("idb_migrated");
-  if (legacyMigrated) return; // Already migrated by an older build.
-
-  const migrationOwner = localStorage.getItem("legacy_migration_owner");
-  if (migrationOwner && migrationOwner !== userId) return;
-
-  const migratedKey = `idb_migrated:${userId}`;
-  const migrated = localStorage.getItem(migratedKey);
-  if (migrated) return; // Already migrated for this account.
-
-  localStorage.setItem("legacy_migration_owner", userId);
-
-  // Migrate diary logs
-  const logs = loadFromLS("schema_logs", []);
-  if (logs.length > 0) {
-    for (const log of logs) {
-      await dbDiary.upsert(log);
-    }
+  // Нет токена — не авторизованы, импорт невозможен
+  const token = localStorage.getItem("auth_token");
+  if (!token) {
+    // Помечаем как выполнено чтобы не пытаться повторно на каждую загрузку
+    localStorage.setItem(MIGRATED_KEY, "1");
+    return;
   }
 
-  // Migrate cycle state
-  const cycleDay = loadFromLS("cycleDay", 14);
-  const periodStartDate = loadFromLS("period_start_date", null);
-  const periodActive = loadFromLS("period_active", false);
+  // Собираем данные из localStorage (старый формат)
+  const diary = loadFromLS("schema_logs", []);
   const periodHistory = loadFromLS("period_history", []);
-
-  await dbCycle.save({
-    cycleDay,
-    periodStartDate,
-    periodActive,
-    periodHistory,
-  });
-
-  // Migrate period history
-  if (periodHistory.length > 0) {
-    for (const entry of periodHistory) {
-      await dbPeriod.add(entry);
-    }
-  }
-
-  // Migrate silence state
-  const silenceActive = loadFromLS("silence_active", false);
-  const silenceStartDate = loadFromLS("silence_start_date", null);
-  const silenceDays = loadFromLS("silence_days", 14);
-
-  await dbSilence.save({
-    silenceActive,
-    silenceStartDate,
-    silenceDays,
-  });
-
-  // Migrate silence logs
   const silenceLogs = loadFromLS("silence_logs", []);
-  if (silenceLogs.length > 0) {
-    for (const log of silenceLogs) {
-      await dbSilenceLogs.upsert(log);
-    }
+
+  // Если нечего мигрировать — помечаем и выходим
+  if (!diary.length && !periodHistory.length && !silenceLogs.length) {
+    localStorage.setItem(MIGRATED_KEY, "1");
+    return;
   }
 
-  // Migrate AI sessions
-  const aiSessions = loadFromLS("ai_sessions", []);
-  if (aiSessions.length > 0) {
-    for (const session of aiSessions) {
-      await dbAISessions.upsert(session);
-    }
-  }
+  try {
+    const res = await fetch(`${API_URL}/api/import/local`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ diary, periodHistory, silenceLogs }),
+    });
 
-  // Mark migration as complete
-  localStorage.setItem(migratedKey, "1");
+    if (res.ok) {
+      const result = await res.json();
+      console.log("[migrate] импортировано:", result.imported);
+      localStorage.setItem(MIGRATED_KEY, "1");
+    } else {
+      console.warn("[migrate] сервер вернул ошибку, попробуем при следующем запуске");
+    }
+  } catch (err) {
+    // Сеть недоступна — не падаем, попробуем при следующем запуске
+    console.warn("[migrate] не удалось импортировать данные:", err.message);
+  }
 }
