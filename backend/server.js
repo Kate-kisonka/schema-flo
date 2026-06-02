@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { pool, query } from "./db.js";
 
 dotenv.config();
@@ -13,12 +14,76 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
 const ALLOWED_ORIGINS = ["http://localhost:5173", "https://schema-flo.vercel.app"];
+const CODE_TTL_MINUTES = 10;
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 // credentials: true нужен для будущих cookie-based flow
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json({ limit: "2mb" }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalizeEmail(email) {
+  return String(email || "").toLowerCase().trim();
+}
+
+function createVerificationCode() {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+function hashVerificationCode(code) {
+  return crypto.createHash("sha256").update(code).digest("hex");
+}
+
+function buildFrontendAuthRedirect(user, accessToken) {
+  const params = new URLSearchParams({
+    token: accessToken,
+    user: JSON.stringify({ id: user.id, email: user.email }),
+  });
+  return `${FRONTEND_URL}/#auth=${encodeURIComponent(params.toString())}`;
+}
+
+async function sendVerificationEmail(email, code) {
+  if (process.env.RESEND_API_KEY) {
+    const from = process.env.EMAIL_FROM || "Schema Flo <noreply@schema-flo.app>";
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: email,
+        subject: "Код входа в Schema Flo",
+        text: `Ваш код подтверждения Schema Flo: ${code}. Он действует ${CODE_TTL_MINUTES} минут.`,
+      }),
+    });
+
+    if (!response.ok) {
+      const message = await response.text().catch(() => "");
+      throw new Error(`Email provider failed: ${response.status} ${message}`);
+    }
+    return;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[auth] verification code for ${email}: ${code}`);
+    return;
+  }
+
+  throw new Error("Email provider is not configured");
+}
+
+async function saveAndSendVerificationCode(userId, email) {
+  const code = createVerificationCode();
+  await query(
+    `INSERT INTO email_verification_codes (user_id, code_hash, expires_at)
+     VALUES ($1, $2, now() + ($3 || ' minutes')::interval)`,
+    [userId, hashVerificationCode(code), CODE_TTL_MINUTES]
+  );
+  await sendVerificationEmail(email, code);
+}
 
 function isIsoDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -67,37 +132,210 @@ app.post("/api/auth/register", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email и пароль обязательны" });
   if (password.length < 8) return res.status(400).json({ error: "Пароль должен быть минимум 8 символов" });
+  const normalizedEmail = normalizeEmail(email);
 
   try {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await query(
       "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email",
-      [email.toLowerCase().trim(), passwordHash]
+      [normalizedEmail, passwordHash]
     );
     const user = result.rows[0];
-    res.status(201).json({ user, accessToken: signToken(user) });
+    await saveAndSendVerificationCode(user.id, user.email);
+    res.status(201).json({ user, verificationRequired: true });
   } catch (err) {
-    if (err.code === "23505") return res.status(409).json({ error: "Пользователь с таким email уже существует" });
+    if (err.code === "23505") {
+      const existing = await query(
+        "SELECT id, email, password_hash, email_verified_at FROM users WHERE lower(email) = $1",
+        [normalizedEmail]
+      );
+      const user = existing.rows[0];
+      if (user && !user.email_verified_at && user.password_hash && await bcrypt.compare(password, user.password_hash)) {
+        await saveAndSendVerificationCode(user.id, user.email);
+        return res.json({ user: { id: user.id, email: user.email }, verificationRequired: true });
+      }
+      return res.status(409).json({ error: "Пользователь с таким email уже существует" });
+    }
     console.error("register error:", err.message);
     res.status(500).json({ error: "Ошибка регистрации" });
+  }
+});
+
+app.post("/api/auth/resend-code", async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  if (!email) return res.status(400).json({ error: "Email обязателен" });
+
+  try {
+    const result = await query("SELECT id, email, email_verified_at FROM users WHERE lower(email) = $1", [email]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
+    if (user.email_verified_at) return res.status(409).json({ error: "Email уже подтверждён" });
+
+    await saveAndSendVerificationCode(user.id, user.email);
+    res.json({ verificationRequired: true });
+  } catch (err) {
+    console.error("resend code error:", err.message);
+    res.status(500).json({ error: "Не удалось отправить код" });
+  }
+});
+
+app.post("/api/auth/verify-email", async (req, res) => {
+  const email = normalizeEmail(req.body.email);
+  const code = String(req.body.code || "").trim();
+  if (!email || !/^\d{6}$/.test(code)) return res.status(400).json({ error: "Нужны email и 6-значный код" });
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const userResult = await client.query(
+      "SELECT id, email FROM users WHERE lower(email) = $1 FOR UPDATE",
+      [email]
+    );
+    const user = userResult.rows[0];
+    if (!user) {
+      await client.query("rollback");
+      return res.status(404).json({ error: "Пользователь не найден" });
+    }
+
+    const codeResult = await client.query(
+      `SELECT id FROM email_verification_codes
+       WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL AND expires_at > now()
+       ORDER BY created_at DESC LIMIT 1`,
+      [user.id, hashVerificationCode(code)]
+    );
+    if (codeResult.rowCount === 0) {
+      await client.query("rollback");
+      return res.status(401).json({ error: "Код неверный или устарел" });
+    }
+
+    await client.query("UPDATE email_verification_codes SET used_at = now() WHERE id = $1", [codeResult.rows[0].id]);
+    await client.query("UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1", [user.id]);
+    await client.query("commit");
+
+    res.json({ user: { id: user.id, email: user.email }, accessToken: signToken(user) });
+  } catch (err) {
+    await client.query("rollback");
+    console.error("verify email error:", err.message);
+    res.status(500).json({ error: "Не удалось подтвердить email" });
+  } finally {
+    client.release();
+  }
+});
+
+app.get("/api/auth/google", (_req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_REDIRECT_URI) {
+    return res.status(500).json({ error: "Google OAuth is not configured" });
+  }
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    response_type: "code",
+    scope: "openid email profile",
+    prompt: "select_account",
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+app.get("/api/auth/google/callback", async (req, res) => {
+  const code = req.query.code;
+  if (!code) return res.redirect(`${FRONTEND_URL}/?authError=missing_google_code`);
+
+  try {
+    const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        grant_type: "authorization_code",
+      }),
+    });
+    const tokenData = await tokenResponse.json();
+    if (!tokenResponse.ok) throw new Error(tokenData.error_description || "Google token exchange failed");
+
+    const profileResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const profile = await profileResponse.json();
+    if (!profileResponse.ok) throw new Error(profile.error_description || "Google profile failed");
+    if (!profile.email || !profile.sub) throw new Error("Google profile is missing email or subject");
+
+    const email = normalizeEmail(profile.email);
+    const client = await pool.connect();
+    try {
+      await client.query("begin");
+      const linked = await client.query(
+        `SELECT u.id, u.email
+         FROM oauth_accounts oa
+         JOIN users u ON u.id = oa.user_id
+         WHERE oa.provider = 'google' AND oa.provider_user_id = $1`,
+        [profile.sub]
+      );
+
+      let user = linked.rows[0];
+      if (!user) {
+        const existing = await client.query("SELECT id, email FROM users WHERE lower(email) = $1", [email]);
+        user = existing.rows[0];
+        if (!user) {
+          const created = await client.query(
+            "INSERT INTO users (email, password_hash, email_verified_at) VALUES ($1, NULL, now()) RETURNING id, email",
+            [email]
+          );
+          user = created.rows[0];
+        } else {
+          await client.query(
+            "UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1",
+            [user.id]
+          );
+        }
+
+        await client.query(
+          `INSERT INTO oauth_accounts (user_id, provider, provider_user_id, email)
+           VALUES ($1, 'google', $2, $3)
+           ON CONFLICT (provider, provider_user_id)
+           DO UPDATE SET user_id = EXCLUDED.user_id, email = EXCLUDED.email`,
+          [user.id, profile.sub, email]
+        );
+      }
+
+      await client.query("commit");
+      res.redirect(buildFrontendAuthRedirect(user, signToken(user)));
+    } catch (err) {
+      await client.query("rollback");
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error("google auth error:", err.message);
+    res.redirect(`${FRONTEND_URL}/?authError=google_auth_failed`);
   }
 });
 
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email и пароль обязательны" });
+  const normalizedEmail = normalizeEmail(email);
 
   try {
     const result = await query(
-      "SELECT id, email, password_hash FROM users WHERE email = $1",
-      [email.toLowerCase().trim()]
+      "SELECT id, email, password_hash, email_verified_at FROM users WHERE lower(email) = $1",
+      [normalizedEmail]
     );
     const user = result.rows[0];
     // Одинаковые сообщения — безопасная практика (не раскрываем какого поля нет)
     if (!user) return res.status(401).json({ error: "Неверный email или пароль" });
 
+    if (!user.password_hash) return res.status(401).json({ error: "Войдите через Google для этого аккаунта" });
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: "Неверный email или пароль" });
+    if (!user.email_verified_at) {
+      await saveAndSendVerificationCode(user.id, user.email);
+      return res.status(403).json({ error: "Нужно подтвердить email", verificationRequired: true });
+    }
 
     res.json({ user: { id: user.id, email: user.email }, accessToken: signToken(user) });
   } catch (err) {
@@ -110,12 +348,12 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/auth/me", auth, async (req, res) => {
   try {
     const result = await query(
-      "SELECT id, email, created_at FROM users WHERE id = $1",
+      "SELECT id, email, created_at, email_verified_at FROM users WHERE id = $1",
       [req.user.id]
     );
     const user = result.rows[0];
-    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
-    res.json({ user });
+    if (!user || !user.email_verified_at) return res.status(401).json({ error: "Unauthorized" });
+    res.json({ user: { id: user.id, email: user.email, created_at: user.created_at } });
   } catch (err) {
     console.error("me error:", err.message);
     res.status(500).json({ error: "Ошибка сервера" });

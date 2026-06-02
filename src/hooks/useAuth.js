@@ -1,45 +1,98 @@
 import { useState, useEffect } from "react";
-import { login as apiLogin, register as apiRegister, getMe } from "../services/authApi";
+import {
+  login as apiLogin,
+  register as apiRegister,
+  verifyEmail as apiVerifyEmail,
+  resendCode as apiResendCode,
+  getMe,
+} from "../services/authApi";
 
 const TOKEN_KEY = "auth_token";
+const USER_KEY = "auth_user";
+
+function saveAuthSession(token, user) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+function clearAuthSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
+function consumeOAuthRedirect() {
+  const hash = window.location.hash || "";
+  if (!hash.startsWith("#auth=")) return null;
+
+  const authParams = new URLSearchParams(decodeURIComponent(hash.slice("#auth=".length)));
+  const token = authParams.get("token");
+  const userRaw = authParams.get("user");
+  if (!token || !userRaw) return null;
+
+  const user = JSON.parse(userRaw);
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  return { token, user };
+}
 
 export function useAuth() {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
 
-  // При загрузке — проверяем сохранённый токен через /api/auth/me
   useEffect(() => {
+    const oauthSession = consumeOAuthRedirect();
+    if (oauthSession) {
+      saveAuthSession(oauthSession.token, oauthSession.user);
+      setUser(oauthSession.user);
+      setLoading(false);
+      return;
+    }
+
     const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) { setLoading(false); return; }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     getMe(token)
-      .then(({ user }) => setUser(user))
-      .catch(() => localStorage.removeItem(TOKEN_KEY)) // токен протух — удаляем
+      .then(({ user }) => {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        setUser(user);
+      })
+      .catch(() => clearAuthSession())
       .finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password) => {
     setError(null);
-    // authApi нормализует { accessToken } → { token }
     const { token, user } = await apiLogin(email, password);
-    localStorage.setItem(TOKEN_KEY, token);
+    saveAuthSession(token, user);
     setUser(user);
   };
 
   const register = async (email, password) => {
     setError(null);
-    const { token, user } = await apiRegister(email, password);
-    localStorage.setItem(TOKEN_KEY, token);
+    return apiRegister(email, password);
+  };
+
+  const verifyEmail = async (email, code) => {
+    setError(null);
+    const { token, user } = await apiVerifyEmail(email, code);
+    saveAuthSession(token, user);
     setUser(user);
   };
 
+  const resendCode = async (email) => {
+    setError(null);
+    return apiResendCode(email);
+  };
+
   const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
+    clearAuthSession();
     setUser(null);
   };
 
   const getToken = () => localStorage.getItem(TOKEN_KEY);
 
-  return { user, loading, error, setError, login, register, logout, getToken };
+  return { user, loading, error, setError, login, register, verifyEmail, resendCode, logout, getToken };
 }

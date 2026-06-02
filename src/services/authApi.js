@@ -5,17 +5,25 @@ async function request(path, options = {}) {
     headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Ошибка сервера");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error = new Error(data.error || "Ошибка сервера");
+    error.status = res.status;
+    error.data = data;
+    throw error;
+  }
   return data;
+}
+
+export function getGoogleAuthUrl() {
+  return `${API}/api/auth/google`;
 }
 
 export function register(email, password) {
   return request("/api/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, password }),
-  }).then(({ accessToken, user }) => ({ token: accessToken, user }));
-  // Нормализуем accessToken → token, чтобы useAuth.js не менять
+  });
 }
 
 export function login(email, password) {
@@ -23,6 +31,20 @@ export function login(email, password) {
     method: "POST",
     body: JSON.stringify({ email, password }),
   }).then(({ accessToken, user }) => ({ token: accessToken, user }));
+}
+
+export function verifyEmail(email, code) {
+  return request("/api/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ email, code }),
+  }).then(({ accessToken, user }) => ({ token: accessToken, user }));
+}
+
+export function resendCode(email) {
+  return request("/api/auth/resend-code", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
 }
 
 export function getMe(token) {

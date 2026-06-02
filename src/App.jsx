@@ -31,9 +31,9 @@ export default function App() {
   // migrateFromLocalStorage сама проверяет наличие токена и флага
   useEffect(() => {
     if (!auth.loading) {
-      migrateFromLocalStorage().finally(() => setIsLoading(false));
+      migrateFromLocalStorage(auth.user?.id).finally(() => setIsLoading(false));
     }
-  }, [auth.loading]);
+  }, [auth.loading, auth.user?.id]);
 
   const cycle = useCycle();
   const diary = useDiary();
@@ -58,6 +58,8 @@ export default function App() {
       return (
         <RegisterScreen
           onRegister={auth.register}
+          onVerifyEmail={auth.verifyEmail}
+          onResendCode={auth.resendCode}
           onGoLogin={() => { auth.setError(null); setAuthScreen("login"); }}
           error={auth.error}
           setError={auth.setError}
@@ -67,6 +69,8 @@ export default function App() {
     return (
       <LoginScreen
         onLogin={auth.login}
+        onVerifyEmail={auth.verifyEmail}
+        onResendCode={auth.resendCode}
         onGoRegister={() => { auth.setError(null); setAuthScreen("register"); }}
         error={auth.error}
         setError={auth.setError}

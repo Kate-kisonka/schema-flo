@@ -1,7 +1,6 @@
 // Одноразовая миграция: перекидываем данные из localStorage в PostgreSQL
 // Вызывается из App.jsx после подтверждения авторизации
 
-const MIGRATED_KEY = "pg_migrated";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 function loadFromLS(key, fallback) {
@@ -13,15 +12,16 @@ function loadFromLS(key, fallback) {
   }
 }
 
-export async function migrateFromLocalStorage() {
+export async function migrateFromLocalStorage(userId) {
+  if (!userId) return;
+  const migratedKey = `pg_migrated:${userId}`;
+
   // Уже мигрировали — выходим
-  if (localStorage.getItem(MIGRATED_KEY)) return;
+  if (localStorage.getItem(migratedKey)) return;
 
   // Нет токена — не авторизованы, импорт невозможен
   const token = localStorage.getItem("auth_token");
   if (!token) {
-    // Помечаем как выполнено чтобы не пытаться повторно на каждую загрузку
-    localStorage.setItem(MIGRATED_KEY, "1");
     return;
   }
 
@@ -32,7 +32,7 @@ export async function migrateFromLocalStorage() {
 
   // Если нечего мигрировать — помечаем и выходим
   if (!diary.length && !periodHistory.length && !silenceLogs.length) {
-    localStorage.setItem(MIGRATED_KEY, "1");
+    localStorage.setItem(migratedKey, "1");
     return;
   }
 
@@ -49,7 +49,7 @@ export async function migrateFromLocalStorage() {
     if (res.ok) {
       const result = await res.json();
       console.log("[migrate] импортировано:", result.imported);
-      localStorage.setItem(MIGRATED_KEY, "1");
+      localStorage.setItem(migratedKey, "1");
     } else {
       console.warn("[migrate] сервер вернул ошибку, попробуем при следующем запуске");
     }
