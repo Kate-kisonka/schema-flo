@@ -102,7 +102,7 @@ Node.js на машине **не нужен** — всё запускается 
 ### Шаг 1 — Клонировать репозиторий
 
 ```bash
-git clone <URL-репозитория>
+git clone https://git.solutions.ooo/emelina/schema-flo.git
 cd schema-flo
 ```
 
