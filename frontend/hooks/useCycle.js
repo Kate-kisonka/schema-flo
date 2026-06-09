@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getTodayKey, parseLocalDate } from "../utils";
-import { dbCycle } from "../services/db";
+import { dbCycle, dbPeriod } from "../services/db";
 
 export function useCycle() {
   const [cycleDay, setCycleDayRaw]               = useState(14);
@@ -11,17 +11,21 @@ export function useCycle() {
   const [showFlowQuestion,  setShowFlowQuestion]  = useState(false);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    dbCycle.get().then(state => {
-      if (state) {
-        setCycleDayRaw(state.cycleDay ?? 14);
-        setPeriodStartDateRaw(state.periodStartDate ?? null);
-        setPeriodActiveRaw(state.periodActive ?? false);
-        setPeriodHistoryRaw(state.periodHistory ?? []);
-      }
-      setLoaded(true);
-    });
+  const reloadCycle = useCallback(async () => {
+    const state = await dbCycle.get();
+    if (state) {
+      setCycleDayRaw(state.cycleDay ?? 14);
+      setPeriodStartDateRaw(state.periodStartDate ?? null);
+      setPeriodActiveRaw(state.periodActive ?? false);
+      setPeriodHistoryRaw(state.periodHistory ?? []);
+    }
+    setLoaded(true);
+    return state;
   }, []);
+
+  useEffect(() => {
+    reloadCycle().catch((err) => console.error("[cycle] load failed:", err.message));
+  }, [reloadCycle]);
 
   // Пересчёт текущего дня цикла от даты начала после загрузки
   useEffect(() => {
@@ -39,8 +43,8 @@ export function useCycle() {
 
   useEffect(() => {
     if (!loaded) return;
-    dbCycle.save({ cycleDay, periodStartDate, periodActive, periodHistory });
-  }, [cycleDay, periodStartDate, periodActive, periodHistory, loaded]);
+    dbCycle.save({ cycleDay, periodStartDate, periodActive });
+  }, [cycleDay, periodStartDate, periodActive, loaded]);
 
   const setCycleDay = (day) => setCycleDayRaw(day);
 
@@ -49,12 +53,14 @@ export function useCycle() {
     const cycleLength = periodStartDate
       ? Math.floor((parseLocalDate(today) - parseLocalDate(periodStartDate)) / 86400000)
       : null;
-    setPeriodHistoryRaw(prev => [{ date: today, flowIntensity, cycleLength }, ...prev]);
+    const entry = { date: today, flowIntensity, cycleLength };
+    setPeriodHistoryRaw(prev => [entry, ...prev]);
     setPeriodStartDateRaw(today);
     setCycleDayRaw(1);
     setPeriodActiveRaw(true);
     setShowPeriodConfirm(false);
     setShowFlowQuestion(false);
+    dbPeriod.add(entry).catch((err) => console.error("[cycle] period save failed:", err.message));
   };
 
   const endPeriod = () => setPeriodActiveRaw(false);
@@ -76,5 +82,6 @@ export function useCycle() {
     startPeriod,
     endPeriod,
     avgCycleLength,
+    reloadCycle,
   };
 }

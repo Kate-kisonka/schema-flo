@@ -12,7 +12,11 @@ async function api(path, options = {}) {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(`HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
   if (res.status === 204) return null;
   return res.json();
 }
@@ -27,6 +31,30 @@ function toDiaryClient(item) {
     notes: item.notes || "",
     cycleDay: item.cycle_day,
     phase: item.phase_key,
+    symptoms: item.symptoms || [],
+    discharge: item.discharge ?? null,
+    digestion: item.digestion ?? null,
+    libido: item.libido ?? null,
+    symptomNotes: item.symptom_notes || "",
+    exercises: item.completed_exercise_ids || [],
+  };
+}
+
+function toDiaryPayload(entry) {
+  return {
+    entryDate: entry.date,
+    moodIds: entry.moods || [],
+    activeSchemaIds: entry.schemas || [],
+    intensity: entry.intensity ?? null,
+    notes: entry.notes || "",
+    cycleDay: entry.cycleDay ?? null,
+    phaseKey: entry.phase || null,
+    symptoms: entry.symptoms || [],
+    discharge: entry.discharge ?? null,
+    digestion: entry.digestion ?? null,
+    libido: entry.libido ?? null,
+    symptomNotes: entry.symptomNotes || "",
+    completedExerciseIds: entry.exercises || [],
   };
 }
 
@@ -36,20 +64,10 @@ export const dbDiary = {
     return (data.items || []).map(toDiaryClient);
   },
 
-  // Используем GET /api/diary?date=... вместо загрузки всех записей (фикс N+1)
   async upsert(entry) {
     const data = await api(`/api/diary?date=${encodeURIComponent(entry.date)}`);
     const existing = (data.items || [])[0];
-
-    const payload = {
-      entryDate: entry.date,
-      moodIds: entry.moods || [],
-      activeSchemaIds: entry.schemas || [],
-      intensity: entry.intensity ?? null,
-      notes: entry.notes || "",
-      cycleDay: entry.cycleDay ?? null,
-      phaseKey: entry.phase || null,
-    };
+    const payload = toDiaryPayload(entry);
 
     if (existing?.id) {
       return api(`/api/diary/${existing.id}`, { method: "PATCH", body: JSON.stringify(payload) });
@@ -76,7 +94,6 @@ export const dbCycle = {
     };
   },
 
-  // Фикс: не затираем silence-данные — читаем текущее состояние перед записью
   async save(cycleState) {
     const existing = await api("/api/state").catch(() => null);
     return api("/api/state", {
@@ -85,7 +102,6 @@ export const dbCycle = {
         cycleDay: cycleState.cycleDay ?? null,
         periodStartDate: cycleState.periodStartDate ?? null,
         periodActive: !!cycleState.periodActive,
-        // Сохраняем silence-данные как были
         silenceActive: existing?.silence_active ?? false,
         silenceStartDate: existing?.silence_start_date ?? null,
         silenceDays: existing?.silence_days ?? 14,
@@ -117,13 +133,11 @@ export const dbSilence = {
     };
   },
 
-  // Фикс: не затираем cycle-данные — читаем текущее состояние перед записью
   async save(silenceState) {
     const existing = await api("/api/state").catch(() => null);
     return api("/api/state", {
       method: "PUT",
       body: JSON.stringify({
-        // Сохраняем cycle-данные как были
         cycleDay: existing?.cycle_day ?? null,
         periodStartDate: existing?.period_start_date ?? null,
         periodActive: existing?.period_active ?? false,
@@ -135,32 +149,47 @@ export const dbSilence = {
   },
 };
 
+function toSilenceClient(item) {
+  const meta = item.metadata || {};
+  return {
+    date: new Date(item.logged_at).toISOString().slice(0, 10),
+    dayNum: meta.dayNum ?? null,
+    needsChecked: meta.needsChecked || [],
+    morningNote: meta.morningNote || "",
+    goodDone: meta.goodDone || "",
+    goodTomorrow: meta.goodTomorrow || "",
+  };
+}
+
 export const dbSilenceLogs = {
   async getAll() {
     const data = await api("/api/practices").catch(() => ({ items: [] }));
     return (data.items || [])
       .filter((x) => x.practice_type === "silence")
-      .map((x) => ({
-        date: new Date(x.logged_at).toISOString().slice(0, 10),
-        // Поля ниже не хранятся в БД — заглушки для совместимости с UI
-        dayNum: null,
-        needsChecked: [],
-        morningNote: "",
-        goodDone: "",
-        goodTomorrow: "",
-      }));
+      .map(toSilenceClient);
   },
 
   async upsert(entry) {
     return api("/api/practices", {
       method: "POST",
-      body: JSON.stringify({ practiceType: "silence", loggedAt: `${entry.date}T00:00:00Z` }),
+      body: JSON.stringify({
+        practiceType: "silence",
+        loggedAt: `${entry.date}T00:00:00Z`,
+        metadata: {
+          dayNum: entry.dayNum ?? null,
+          needsChecked: entry.needsChecked || [],
+          morningNote: entry.morningNote || "",
+          goodDone: entry.goodDone || "",
+          goodTomorrow: entry.goodTomorrow || "",
+        },
+      }),
     });
   },
 };
 
-// AI-сессии больше не используются, оставлены для совместимости с migrate.js
-export const dbAISessions = {
-  async getAll() { return []; },
-  async upsert(session) { return session; },
-};
+export async function importBackup({ logs = [], periodHistory = [], silenceLogs = [] }) {
+  return api("/api/import/local", {
+    method: "POST",
+    body: JSON.stringify({ diary: logs, periodHistory, silenceLogs }),
+  });
+}

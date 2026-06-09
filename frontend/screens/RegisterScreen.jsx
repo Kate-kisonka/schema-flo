@@ -66,7 +66,7 @@ export default function RegisterScreen({ onRegister, onVerifyEmail, onResendCode
         <div style={{ textAlign: "center", marginBottom: 40 }}>
           <div style={{ fontSize: 36, marginBottom: 8 }}>🌙</div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: 0 }}>
-            Schema Flow
+            Schema Flo
           </h1>
           <p style={{ color: T.muted, fontSize: 14, marginTop: 6 }}>
             Создай аккаунт

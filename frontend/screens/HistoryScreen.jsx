@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { T } from "../constants/theme";
-import { SCHEMAS, MOODS, CYCLE_PHASES, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS, EXERCISES } from "../data";
-import { getPhase, getTodayKey, formatDate, getDayOfWeek } from "../utils";
+import { SCHEMAS, MOODS, CYCLE_PHASES, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS } from "../data";
+import { getPhase, getTodayKey, formatDate, getDayOfWeek, buildCalendarDays, shiftMonth, parseLocalDate } from "../utils";
+import { importBackup } from "../services/db";
 
 const S = {
   content:    { padding: "0 16px 100px" },
@@ -10,11 +11,59 @@ const S = {
   tabBar:     (active) => ({ flex: 1, padding: "7px 2px", border: "none", background: active ? T.text : "transparent", color: active ? T.bg : T.muted, borderRadius: 7, cursor: "pointer", fontFamily: T.font, fontSize: 10 }),
 };
 
-const ALL_EXERCISES = [...EXERCISES.crisis, ...EXERCISES.schema, ...EXERCISES.cbt];
+function getCurrentMonth() {
+  const today = new Date();
+  return { year: today.getFullYear(), month: today.getMonth() };
+}
 
-export default function HistoryScreen({ logs, periodHistory, history, onSelectLog }) {
+export default function HistoryScreen({ logs, periodHistory, history, onSelectLog, onImportComplete }) {
   const [historyTab, setHistoryTab] = useState("list");
-  const { last14, insights, calendarDays, cyclePhaseStats } = history;
+  const [viewMonth, setViewMonth] = useState(getCurrentMonth);
+  const [selectedDate, setSelectedDate] = useState(getTodayKey());
+  const [importing, setImporting] = useState(false);
+  const { last14, insights, cyclePhaseStats } = history;
+
+  const monthPrefix = `${viewMonth.year}-${String(viewMonth.month + 1).padStart(2, "0")}`;
+  const monthLabel = new Date(viewMonth.year, viewMonth.month, 1).toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  const monthInputValue = monthPrefix;
+  const isCurrentMonth = viewMonth.year === new Date().getFullYear() && viewMonth.month === new Date().getMonth();
+
+  const calendarDays = useMemo(
+    () => buildCalendarDays(viewMonth.year, viewMonth.month, logs),
+    [viewMonth, logs]
+  );
+
+  const monthLogs = useMemo(
+    () => logs.filter((log) => log.date?.startsWith(monthPrefix)),
+    [logs, monthPrefix]
+  );
+
+  const logsByDate = useMemo(() => {
+    const map = new Map();
+    logs.forEach((log) => { if (log.date) map.set(log.date, log); });
+    return map;
+  }, [logs]);
+
+  const selectedLog = logsByDate.get(selectedDate) || null;
+
+  const jumpToDate = (dateStr) => {
+    if (!dateStr) return;
+    setSelectedDate(dateStr);
+    const d = parseLocalDate(dateStr);
+    if (d) setViewMonth({ year: d.getFullYear(), month: d.getMonth() });
+  };
+
+  const navBtn = {
+    border: `1px solid ${T.border}`,
+    background: T.card,
+    color: T.text,
+    borderRadius: 8,
+    padding: "6px 10px",
+    cursor: "pointer",
+    fontFamily: T.font,
+    fontSize: 14,
+    lineHeight: 1,
+  };
 
   const avgCycleLength = () => {
     const lens = periodHistory.filter(p => p.cycleLength && p.cycleLength > 15 && p.cycleLength < 50).map(p => p.cycleLength);
@@ -52,15 +101,21 @@ export default function HistoryScreen({ logs, periodHistory, history, onSelectLo
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        // Импорт через localStorage — при переходе на IndexedDB здесь будет db.import(data)
-        if (data.logs)          localStorage.setItem("schema_logs",    JSON.stringify(data.logs));
-        if (data.periodHistory) localStorage.setItem("period_history", JSON.stringify(data.periodHistory));
-        window.location.reload();
+        setImporting(true);
+        await importBackup({
+          logs: data.logs || [],
+          periodHistory: data.periodHistory || [],
+          silenceLogs: data.silenceLogs || [],
+        });
+        if (onImportComplete) await onImportComplete();
+        alert("Данные импортированы в аккаунт.");
       } catch {
-        alert("Ошибка: файл повреждён или неверный формат.");
+        alert("Ошибка: файл повреждён или импорт не удался.");
+      } finally {
+        setImporting(false);
       }
     };
     reader.readAsText(file);
@@ -79,11 +134,46 @@ export default function HistoryScreen({ logs, periodHistory, history, onSelectLo
         <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
           <button onClick={exportCsv} style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: "pointer", fontFamily: T.font, fontSize: 11, color: T.text }}>⬇ CSV</button>
           <button onClick={exportJson} style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.card, cursor: "pointer", fontFamily: T.font, fontSize: 11, color: T.text }}>⬇ JSON</button>
-          <label style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${T.accent}`, background: T.card, cursor: "pointer", fontFamily: T.font, fontSize: 11, color: T.accent, textAlign: "center" }}>
-            ⬆ Восстановить
-            <input type="file" accept=".json" onChange={importJson} style={{ display: "none" }} />
+          <label style={{ flex: 1, padding: "7px", borderRadius: 8, border: `1px solid ${T.accent}`, background: T.card, cursor: importing ? "wait" : "pointer", fontFamily: T.font, fontSize: 11, color: T.accent, textAlign: "center", opacity: importing ? 0.6 : 1 }}>
+            {importing ? "Импорт…" : "⬆ Восстановить"}
+            <input type="file" accept=".json" onChange={importJson} disabled={importing} style={{ display: "none" }} />
           </label>
         </div>
+
+        {(historyTab === "list" || historyTab === "calendar") && (
+          <div style={{ ...S.card, marginBottom: 10, padding: "10px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <button type="button" style={navBtn} onClick={() => setViewMonth((m) => shiftMonth(m.year, m.month, -1))} aria-label="Предыдущий месяц">‹</button>
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, textTransform: "capitalize" }}>{monthLabel}</div>
+                <input
+                  type="month"
+                  value={monthInputValue}
+                  onChange={(e) => {
+                    const [year, month] = e.target.value.split("-").map(Number);
+                    if (year && month) setViewMonth({ year, month: month - 1 });
+                  }}
+                  style={{ marginTop: 4, width: "100%", fontFamily: T.font, fontSize: 11, color: T.muted, border: "none", background: "transparent", textAlign: "center" }}
+                />
+              </div>
+              <button type="button" style={navBtn} onClick={() => setViewMonth((m) => shiftMonth(m.year, m.month, 1))} aria-label="Следующий месяц">›</button>
+              {!isCurrentMonth && (
+                <button type="button" style={{ ...navBtn, fontSize: 11, whiteSpace: "nowrap" }} onClick={() => { const m = getCurrentMonth(); setViewMonth(m); jumpToDate(getTodayKey()); }}>
+                  Сегодня
+                </button>
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 11, color: T.muted, whiteSpace: "nowrap" }}>Перейти к дню</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => jumpToDate(e.target.value)}
+                style={{ flex: 1, fontFamily: T.font, fontSize: 12, padding: "6px 8px", borderRadius: 8, border: `1px solid ${T.border}`, background: T.bg, color: T.text }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Список */}
         {historyTab === "list" && (
@@ -109,7 +199,10 @@ export default function HistoryScreen({ logs, periodHistory, history, onSelectLo
               </div>
             )}
             {logs.length === 0 && <div style={{ textAlign: "center", padding: 36, color: T.muted, fontStyle: "italic", fontSize: 13 }}>Пока нет записей</div>}
-            {logs.map((log, i) => {
+            {logs.length > 0 && monthLogs.length === 0 && (
+              <div style={{ textAlign: "center", padding: 24, color: T.muted, fontStyle: "italic", fontSize: 13 }}>В этом месяце записей нет</div>
+            )}
+            {monthLogs.map((log, i) => {
               const lp = getPhase(log.cycleDay || 1);
               return (
                 <div key={log.date + i} style={{ ...S.card, borderLeft: `3px solid ${lp.color}`, cursor: "pointer" }} onClick={() => onSelectLog(log)}>
@@ -134,27 +227,76 @@ export default function HistoryScreen({ logs, periodHistory, history, onSelectLo
 
         {/* Календарь */}
         {historyTab === "calendar" && (
-          <div style={S.card}>
-            <p style={{ ...S.st, marginBottom: 10 }}>{new Date().toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 6 }}>
-              {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(d => <div key={d} style={{ textAlign: "center", fontSize: 9, color: T.muted, padding: "3px 0" }}>{d}</div>)}
-              {calendarDays.map((day, i) => {
-                if (!day) return <div key={i} />;
-                const lp = day.log ? getPhase(day.log.cycleDay || 1) : null;
-                const isToday = day.dateStr === getTodayKey();
-                return (
-                  <div key={day.dateStr} onClick={() => day.log && onSelectLog(day.log)}
-                    style={{ textAlign: "center", padding: "5px 1px", borderRadius: 6, background: lp ? lp.color + "33" : isToday ? "#1A102815" : "transparent", border: isToday ? `1px solid ${T.text}` : "1px solid transparent", cursor: day.log ? "pointer" : "default", fontSize: 11 }}>
-                    {day.d}
-                    {day.log?.moods?.length > 0 && <div style={{ fontSize: 7, marginTop: 1 }}>{MOODS.find(m => m.id === day.log.moods[0])?.emoji}</div>}
+          <>
+            <div style={S.card}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 4, marginBottom: 6 }}>
+                {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(d => <div key={d} style={{ textAlign: "center", fontSize: 10, color: T.muted, padding: "4px 0", fontWeight: 500 }}>{d}</div>)}
+                {calendarDays.map((day, i) => {
+                  if (!day) return <div key={i} />;
+                  const lp = day.log ? getPhase(day.log.cycleDay || 1) : null;
+                  const isToday = day.dateStr === getTodayKey();
+                  const isSelected = day.dateStr === selectedDate;
+                  const intensity = day.log?.intensity;
+                  return (
+                    <button
+                      key={day.dateStr}
+                      type="button"
+                      onClick={() => setSelectedDate(day.dateStr)}
+                      onDoubleClick={() => day.log && onSelectLog(day.log)}
+                      aria-label={`${day.d} ${day.log ? "есть запись" : "нет записи"}`}
+                      style={{
+                        textAlign: "center",
+                        padding: "6px 2px",
+                        minHeight: 44,
+                        borderRadius: 8,
+                        background: lp ? lp.color + "33" : isToday ? "#1A102810" : T.bg,
+                        border: isSelected ? `2px solid ${T.accent}` : isToday ? `1px solid ${T.text}` : `1px solid ${T.border}`,
+                        cursor: "pointer",
+                        fontFamily: T.font,
+                        fontSize: 12,
+                        color: T.text,
+                      }}
+                    >
+                      <div style={{ fontWeight: isSelected ? 700 : 500 }}>{day.d}</div>
+                      {day.log?.moods?.length > 0 && (
+                        <div style={{ fontSize: 10, marginTop: 2 }}>{MOODS.find(m => m.id === day.log.moods[0])?.emoji}</div>
+                      )}
+                      {intensity != null && (
+                        <div style={{ fontSize: 8, color: T.muted, marginTop: 2 }}>{intensity}/10</div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                {CYCLE_PHASES.map(p => <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: T.muted }}><div style={{ width: 8, height: 8, borderRadius: 2, background: p.color }} />{p.name}</div>)}
+              </div>
+              <p style={{ fontSize: 10, color: T.muted, margin: "10px 0 0", textAlign: "center" }}>Клик — выбрать день · двойной клик — открыть запись</p>
+            </div>
+
+            <div style={{ ...S.card, borderLeft: `3px solid ${selectedLog ? getPhase(selectedLog.cycleDay || 1).color : T.border}` }}>
+              <p style={S.st}>{getDayOfWeek(selectedDate)}, {formatDate(selectedDate)}</p>
+              {selectedLog ? (
+                <>
+                  <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
+                    {selectedLog.moods?.map(id => { const m = MOODS.find(x => x.id === id); return m ? <span key={id} style={{ fontSize: 18 }}>{m.emoji}</span> : null; })}
                   </div>
-                );
-              })}
+                  <div style={{ fontSize: 12, color: T.muted, marginBottom: 10 }}>
+                    Интенсивность {selectedLog.intensity ?? "—"}/10 · день цикла {selectedLog.cycleDay ?? "—"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onSelectLog(selectedLog)}
+                    style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: T.text, color: T.bg, fontFamily: T.font, fontSize: 13, cursor: "pointer" }}
+                  >
+                    Открыть запись
+                  </button>
+                </>
+              ) : (
+                <div style={{ fontSize: 13, color: T.muted, fontStyle: "italic" }}>За этот день записей нет</div>
+              )}
             </div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-              {CYCLE_PHASES.map(p => <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: T.muted }}><div style={{ width: 8, height: 8, borderRadius: 2, background: p.color }} />{p.name}</div>)}
-            </div>
-          </div>
+          </>
         )}
 
         {/* Графики */}

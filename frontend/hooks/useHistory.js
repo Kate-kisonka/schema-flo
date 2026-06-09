@@ -65,22 +65,6 @@ export function useHistory(logs) {
     return result;
   }, [logs]);
 
-  const calendarDays = useMemo(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days = [];
-
-    for (let i = 0; i < (firstDay === 0 ? 6 : firstDay - 1); i++) days.push(null);
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      days.push({ d, dateStr, log: logs.find(l => l.date === dateStr) || null });
-    }
-    return days;
-  }, [logs]);
-
   const cyclePhaseStats = useMemo(() =>
     CYCLE_PHASES.map(cp => {
       const phaseLogs = logs.filter(l => cp.days.includes(l.cycleDay || 1));
@@ -90,5 +74,5 @@ export function useHistory(logs) {
     }).filter(Boolean),
   [logs]);
 
-  return { last14, insights, calendarDays, cyclePhaseStats };
+  return { last14, insights, cyclePhaseStats };
 }

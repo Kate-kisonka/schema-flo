@@ -24,8 +24,21 @@ export default function App() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [schemaPopup, setSchemaPopup] = useState(null);
   const [authScreen, setAuthScreen] = useState("login"); // "login" | "register"
+  const [authNotice, setAuthNotice] = useState(null);
 
   const auth = useAuth();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("authError");
+    if (!authError) return;
+    const messages = {
+      missing_google_code: "Google не вернул код авторизации. Попробуйте снова.",
+      google_auth_failed: "Не удалось войти через Google. Попробуйте позже.",
+    };
+    setAuthNotice(messages[authError] || "Ошибка входа через Google");
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
 
   // Миграция запускается ПОСЛЕ подтверждения авторизации
   // migrateFromLocalStorage сама проверяет наличие токена и флага
@@ -60,8 +73,8 @@ export default function App() {
           onRegister={auth.register}
           onVerifyEmail={auth.verifyEmail}
           onResendCode={auth.resendCode}
-          onGoLogin={() => { auth.setError(null); setAuthScreen("login"); }}
-          error={auth.error}
+          onGoLogin={() => { auth.setError(null); setAuthNotice(null); setAuthScreen("login"); }}
+          error={auth.error || authNotice}
           setError={auth.setError}
         />
       );
@@ -71,8 +84,8 @@ export default function App() {
         onLogin={auth.login}
         onVerifyEmail={auth.verifyEmail}
         onResendCode={auth.resendCode}
-        onGoRegister={() => { auth.setError(null); setAuthScreen("register"); }}
-        error={auth.error}
+        onGoRegister={() => { auth.setError(null); setAuthNotice(null); setAuthScreen("register"); }}
+        error={auth.error || authNotice}
         setError={auth.setError}
       />
     );
@@ -102,6 +115,9 @@ export default function App() {
                   periodHistory={cycle.periodHistory}
                   history={history}
                   onSelectLog={setSelectedLog}
+                  onImportComplete={async () => {
+                    await Promise.all([diary.reloadLogs(), cycle.reloadCycle()]);
+                  }}
                 />
               )}
             </>

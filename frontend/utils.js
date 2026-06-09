@@ -32,6 +32,25 @@ export function getDayOfWeek(dateStr) {
   return ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"][date.getDay()];
 }
 
+export function shiftMonth(year, month, delta) {
+  const d = new Date(year, month + delta, 1);
+  return { year: d.getFullYear(), month: d.getMonth() };
+}
+
+export function buildCalendarDays(year, month, logs) {
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const days = [];
+  const pad = firstDay === 0 ? 6 : firstDay - 1;
+
+  for (let i = 0; i < pad; i++) days.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    days.push({ d, dateStr, log: logs.find((l) => l.date === dateStr) || null });
+  }
+  return days;
+}
+
 export function load(key, fallback) {
   try {
     const v = localStorage.getItem(key);

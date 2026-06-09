@@ -1,134 +1,105 @@
-# Schema Flo — персональный трекер психического здоровья
+# Schema Flo
 
-**Живое приложение:** [schema-flo.vercel.app](https://schema-flo.vercel.app)
+Schema Flo — персональный трекер психологического состояния, цикла и практик самоподдержки.
 
-Объединяет схема-терапию, КПТ и отслеживание менструального цикла — создан на React + Node.js.
+Проект объединяет:
+- ежедневный дневник настроения;
+- отслеживание активных схем;
+- трекер менструального цикла;
+- библиотеку практик;
+- историю записей;
+- авторизацию;
+- backend API;
+- PostgreSQL-хранилище.
 
----
-
-## Что это?
-
-Schema Flo — одностраничное веб-приложение для ежедневного психологического самонаблюдения. Оно связывает эмоциональные состояния, активные схемы из схема-терапии и фазы менструального цикла — помогая отслеживать закономерности со временем.
-
-**Основные функции:**
-
-* Пошаговый ежедневный дневник (настроение, телесные симптомы, схемы, заметки)
-* 18 схем из схема-терапии Янга с описаниями
-* Трекер менструального цикла с психологическими комментариями по фазам
-* Библиотека практик: кризисные техники, упражнения схема-терапии, инструменты КПТ
-* Дыхательная практика 4-7-8 с таймером и анимацией
-* Чат поддержки с ИИ с историей сессий (API Claude)
-* История с графиками, календарём и анализом паттернов
-* Экспорт в CSV и JSON для передачи терапевту или резервного копирования
+> AI-функциональность временно оставлена как есть и не входит в текущий этап доработок.
 
 ---
 
-## Быстрый старт
+## Статус проекта
 
-**Требования:** Node.js 20+ и npm
+Проект находится в активной разработке.
 
-```bash
-# Клонировать репозиторий
-git clone https://github.com/Kate-kisonka/schema-flo.git
-cd schema-flo
+Текущий фокус:
 
-# Установить зависимости фронтенда
-npm install
-
-# Установить зависимости бэкенда
-cd backend && npm install && cd ..
-
-# Создать .env файл для бэкенда
-cp backend/.env.example backend/.env
-# Добавить ANTHROPIC_API_KEY в backend/.env
-
-# Запуск фронтенда
-npm run dev
-
-# Запуск бэкенда (в отдельном терминале)
-cd backend && npm run dev
-```
-
-Откройте [http://localhost:5173](http://localhost:5173) — готово.
-
-> **Примечание:** для работы чата с ИИ требуется ключ Anthropic API. Остальной функционал доступен без него.
-
----
-
-## Структура проекта
-
-```
-schema-flo/
-├── src/
-│   ├── App.jsx                  # Основной компонент
-│   ├── data.js                  # Статические данные (схемы, настроения, фазы)
-│   ├── utils.js                 # Вспомогательные функции
-│   └── components/
-│       └── Breathing478.jsx     # Дыхательная практика
-├── backend/
-│   ├── server.js                # Express API сервер
-│   ├── Dockerfile               # Docker-образ бэкенда
-│   └── package.json
-├── .github/
-│   └── workflows/
-│       ├── ci.yml               # CI: сборка при каждом push
-│       └── cd.yml               # CD: деплой бэкенда при изменениях
-├── docker-compose.yml           # Локальная разработка через Docker
-└── .env.example                 # Шаблон для API-ключа
-```
-
----
-
-## Хранение данных
-
-Все данные хранятся в **localStorage браузера** — без аккаунта. Данные остаются на вашем устройстве.
-
-| Ключ                | Содержимое                        |
-| ------------------- | --------------------------------- |
-| `schema_logs`       | Записи дневника                   |
-| `period_history`    | История цикла                     |
-| `silence_logs`      | Практика тишины                   |
-| `ai_sessions`       | История чата                      |
-| `cycleDay`          | Текущий день цикла                |
-| `period_start_date` | Дата начала последней менструации |
-
-**Для резервного копирования:** используйте экспорт в разделе History (CSV или полный JSON).
-
----
-
-## Деплой
-
-| Сервис  | URL                                                        | Назначение      |
-| ------- | ---------------------------------------------------------- | --------------- |
-| Vercel  | [schema-flo.vercel.app](https://schema-flo.vercel.app)     | Фронтенд        |
-| Render  | [schema-flo.onrender.com](https://schema-flo.onrender.com) | Бэкенд API      |
+1. Стабилизировать связку frontend ↔ backend ↔ PostgreSQL.
+2. Довести авторизацию через Google.
+3. Актуализировать локальный запуск через Docker Compose.
+4. Разделить личную версию проекта с деплоем и корпоративную версию без внешнего деплоя.
+5. Добавить проверки качества, безопасности и лишнего кода.
 
 ---
 
 ## Технологии
 
-| Уровень   | Технология           |
-| --------- | -------------------- |
-| UI        | React 19 + Vite      |
-| Стили     | Inline CSS           |
-| Состояние | useState / useEffect |
-| Хранение  | localStorage         |
-| Бэкенд    | Node.js + Express    |
-| ИИ        | Anthropic Claude API |
-| CI/CD     | GitHub Actions       |
-| Деплой    | Vercel + Render      |
+### Frontend
+
+- React
+- Vite
+- JavaScript
+- LocalStorage/Dexie legacy migration
+- CSS/inline styles
+
+### Backend
+
+- Node.js
+- Express
+- PostgreSQL
+- pg
+- JWT
+- bcryptjs
+- Google OAuth
+- Email verification flow
+
+### Инфраструктура
+
+- Docker Compose
+- PostgreSQL 16
+- pgAdmin
+- Vercel	schema-flo.vercel.app	Фронтенд
+- Render	schema-flo.onrender.com	Бэкенд API
+- Gitea для корпоративной версии
 
 ---
 
-## План развития (Roadmap)
+## Структура проекта
 
-* [x] Docker для локального развертывания
-* [x] CI/CD (GitHub Actions → деплой)
-* [x] Деплой на Vercel + Render
-* [ ] Заменить localStorage на backend (Supabase)
-* [ ] Авторизация пользователей
-* [ ] Поддержка PWA (мобильная версия)
-
----
-
-*Проект используется как учебный DevOps-проект — для практики CI/CD, Docker и деплоя.*
+```txt
+schema-flo/
+├── backend/
+│   ├── db.js                     # Подключение к PostgreSQL
+│   ├── migrate.js                # Запуск SQL-миграций
+│   ├── server.js                 # Express API
+│   ├── Dockerfile
+│   ├── .env.example
+│   └── migrations/
+│       ├── 001_init.sql
+│       ├── 002_hardening.sql
+│       ├── 003_frontend_state.sql
+│       └── 005_google_oauth.sql
+│
+├── frontend/
+│   ├── App.jsx
+│   ├── components/
+│   ├── constants/
+│   ├── hooks/
+│   │   ├── useAuth.js
+│   │   ├── useCycle.js
+│   │   ├── useDiary.js
+│   │   ├── useHistory.js
+│   │   └── useSilence.js
+│   ├── screens/
+│   │   ├── LoginScreen.jsx
+│   │   ├── RegisterScreen.jsx
+│   │   ├── HomeScreen.jsx
+│   │   ├── HistoryScreen.jsx
+│   │   ├── PracticesScreen.jsx
+│   │   └── LogDetailScreen.jsx
+│   └── services/
+│       ├── authApi.js
+│       ├── db.js
+│       └── migrate.js
+│
+├── docker-compose.yml
+├── package.json
+└── README.md

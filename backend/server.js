@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { pool, query } from "./db.js";
+import { sendVerificationEmail } from "./email.js";
 
 dotenv.config();
 
@@ -13,12 +14,21 @@ const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
-const ALLOWED_ORIGINS = ["http://localhost:5173", "https://schema-flo.vercel.app"];
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,https://schema-flo.vercel.app")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 const CODE_TTL_MINUTES = 10;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 // credentials: true нужен для будущих cookie-based flow
-app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) callback(null, true);
+    else callback(new Error(`CORS blocked: ${origin}`));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: "2mb" }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -43,38 +53,6 @@ function buildFrontendAuthRedirect(user, accessToken) {
   return `${FRONTEND_URL}/#auth=${encodeURIComponent(params.toString())}`;
 }
 
-async function sendVerificationEmail(email, code) {
-  if (process.env.RESEND_API_KEY) {
-    const from = process.env.EMAIL_FROM || "Schema Flo <noreply@schema-flo.app>";
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: email,
-        subject: "Код входа в Schema Flo",
-        text: `Ваш код подтверждения Schema Flo: ${code}. Он действует ${CODE_TTL_MINUTES} минут.`,
-      }),
-    });
-
-    if (!response.ok) {
-      const message = await response.text().catch(() => "");
-      throw new Error(`Email provider failed: ${response.status} ${message}`);
-    }
-    return;
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[auth] verification code for ${email}: ${code}`);
-    return;
-  }
-
-  throw new Error("Email provider is not configured");
-}
-
 async function saveAndSendVerificationCode(userId, email) {
   const code = createVerificationCode();
   await query(
@@ -82,7 +60,55 @@ async function saveAndSendVerificationCode(userId, email) {
      VALUES ($1, $2, now() + ($3 || ' minutes')::interval)`,
     [userId, hashVerificationCode(code), CODE_TTL_MINUTES]
   );
-  await sendVerificationEmail(email, code);
+  await sendVerificationEmail(email, code, CODE_TTL_MINUTES);
+}
+
+const DIARY_SELECT = `id, entry_date, mood_ids, active_schema_ids, intensity, notes,
+  cycle_day, phase_key, symptoms, discharge, digestion, libido, symptom_notes,
+  completed_exercise_ids, created_at, updated_at`;
+
+function parseJsonArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  return [];
+}
+
+function buildDiaryParams(body) {
+  const {
+    moodIds,
+    activeSchemaIds,
+    intensity,
+    notes,
+    cycleDay,
+    phaseKey,
+    symptoms,
+    discharge,
+    digestion,
+    libido,
+    symptomNotes,
+    completedExerciseIds,
+  } = body;
+
+  const safeIntensity = intensity !== undefined && intensity !== null
+    ? toSafeInt(intensity, 1, 10)
+    : undefined;
+
+  return {
+    moodIds: moodIds !== undefined ? JSON.stringify(parseJsonArray(moodIds)) : undefined,
+    activeSchemaIds: activeSchemaIds !== undefined ? JSON.stringify(parseJsonArray(activeSchemaIds)) : undefined,
+    intensity: safeIntensity,
+    notes,
+    cycleDay,
+    phaseKey,
+    symptoms: symptoms !== undefined ? JSON.stringify(parseJsonArray(symptoms)) : undefined,
+    discharge,
+    digestion,
+    libido,
+    symptomNotes,
+    completedExerciseIds: completedExerciseIds !== undefined
+      ? JSON.stringify(parseJsonArray(completedExerciseIds))
+      : undefined,
+  };
 }
 
 function isIsoDate(value) {
@@ -371,14 +397,12 @@ app.get("/api/diary", auth, async (req, res) => {
     let result;
     if (date && isIsoDate(date)) {
       result = await query(
-        `SELECT id, entry_date, mood_ids, active_schema_ids, intensity, notes, cycle_day, phase_key, created_at, updated_at
-         FROM diary_entries WHERE user_id = $1 AND entry_date = $2`,
+        `SELECT ${DIARY_SELECT} FROM diary_entries WHERE user_id = $1 AND entry_date = $2`,
         [req.user.id, date]
       );
     } else {
       result = await query(
-        `SELECT id, entry_date, mood_ids, active_schema_ids, intensity, notes, cycle_day, phase_key, created_at, updated_at
-         FROM diary_entries WHERE user_id = $1 ORDER BY entry_date DESC LIMIT $2 OFFSET $3`,
+        `SELECT ${DIARY_SELECT} FROM diary_entries WHERE user_id = $1 ORDER BY entry_date DESC LIMIT $2 OFFSET $3`,
         [req.user.id, limit, offset]
       );
     }
@@ -390,17 +414,72 @@ app.get("/api/diary", auth, async (req, res) => {
 });
 
 app.post("/api/diary", auth, async (req, res) => {
-  const { entryDate, moodIds = [], activeSchemaIds = [], intensity = null, notes = "", cycleDay = null, phaseKey = null } = req.body;
+  const { entryDate } = req.body;
   if (entryDate && !isIsoDate(entryDate)) return res.status(400).json({ error: "entryDate должен быть в формате YYYY-MM-DD" });
-  if (!Array.isArray(moodIds) || !Array.isArray(activeSchemaIds)) return res.status(400).json({ error: "moodIds и activeSchemaIds должны быть массивами" });
-  const safeIntensity = toSafeInt(intensity, 1, 10);
-  if (intensity !== null && safeIntensity === null) return res.status(400).json({ error: "intensity: целое число от 1 до 10" });
+  if (req.body.moodIds !== undefined && !Array.isArray(req.body.moodIds)) {
+    return res.status(400).json({ error: "moodIds должен быть массивом" });
+  }
+  if (req.body.activeSchemaIds !== undefined && !Array.isArray(req.body.activeSchemaIds)) {
+    return res.status(400).json({ error: "activeSchemaIds должен быть массивом" });
+  }
+
+  const fields = buildDiaryParams({
+    moodIds: req.body.moodIds ?? [],
+    activeSchemaIds: req.body.activeSchemaIds ?? [],
+    intensity: req.body.intensity ?? null,
+    notes: req.body.notes ?? "",
+    cycleDay: req.body.cycleDay ?? null,
+    phaseKey: req.body.phaseKey ?? null,
+    symptoms: req.body.symptoms ?? [],
+    discharge: req.body.discharge ?? null,
+    digestion: req.body.digestion ?? null,
+    libido: req.body.libido ?? null,
+    symptomNotes: req.body.symptomNotes ?? "",
+    completedExerciseIds: req.body.completedExerciseIds ?? [],
+  });
+  if (req.body.intensity !== null && req.body.intensity !== undefined && fields.intensity === null) {
+    return res.status(400).json({ error: "intensity: целое число от 1 до 10" });
+  }
+
   try {
     const result = await query(
-      `INSERT INTO diary_entries (user_id, entry_date, mood_ids, active_schema_ids, intensity, notes, cycle_day, phase_key)
-       VALUES ($1, COALESCE($2, current_date), $3::jsonb, $4::jsonb, $5, $6, $7, $8)
-       RETURNING id, entry_date, mood_ids, active_schema_ids, intensity, notes, cycle_day, phase_key, created_at, updated_at`,
-      [req.user.id, entryDate || null, JSON.stringify(moodIds), JSON.stringify(activeSchemaIds), safeIntensity, notes, cycleDay, phaseKey]
+      `INSERT INTO diary_entries (
+         user_id, entry_date, mood_ids, active_schema_ids, intensity, notes,
+         cycle_day, phase_key, symptoms, discharge, digestion, libido,
+         symptom_notes, completed_exercise_ids
+       )
+       VALUES ($1, COALESCE($2, current_date), $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14::jsonb)
+       ON CONFLICT (user_id, entry_date) DO UPDATE SET
+         mood_ids = EXCLUDED.mood_ids,
+         active_schema_ids = EXCLUDED.active_schema_ids,
+         intensity = EXCLUDED.intensity,
+         notes = EXCLUDED.notes,
+         cycle_day = EXCLUDED.cycle_day,
+         phase_key = EXCLUDED.phase_key,
+         symptoms = EXCLUDED.symptoms,
+         discharge = EXCLUDED.discharge,
+         digestion = EXCLUDED.digestion,
+         libido = EXCLUDED.libido,
+         symptom_notes = EXCLUDED.symptom_notes,
+         completed_exercise_ids = EXCLUDED.completed_exercise_ids,
+         updated_at = now()
+       RETURNING ${DIARY_SELECT}`,
+      [
+        req.user.id,
+        entryDate || null,
+        fields.moodIds,
+        fields.activeSchemaIds,
+        fields.intensity,
+        fields.notes,
+        fields.cycleDay,
+        fields.phaseKey,
+        fields.symptoms,
+        fields.discharge,
+        fields.digestion,
+        fields.libido,
+        fields.symptomNotes,
+        fields.completedExerciseIds,
+      ]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -411,28 +490,47 @@ app.post("/api/diary", auth, async (req, res) => {
 
 app.patch("/api/diary/:id", auth, async (req, res) => {
   const { id } = req.params;
-  const { moodIds, activeSchemaIds, intensity, notes, cycleDay, phaseKey, entryDate } = req.body;
+  const { entryDate } = req.body;
+  if (entryDate && !isIsoDate(entryDate)) return res.status(400).json({ error: "entryDate должен быть в формате YYYY-MM-DD" });
+
+  const fields = buildDiaryParams(req.body);
+  if (req.body.intensity !== undefined && req.body.intensity !== null && fields.intensity === null) {
+    return res.status(400).json({ error: "intensity: целое число от 1 до 10" });
+  }
+
   try {
     const result = await query(
       `UPDATE diary_entries
-       SET entry_date          = COALESCE($3, entry_date),
-           mood_ids            = COALESCE($4::jsonb, mood_ids),
-           active_schema_ids   = COALESCE($5::jsonb, active_schema_ids),
-           intensity           = COALESCE($6, intensity),
-           notes               = COALESCE($7, notes),
-           cycle_day           = COALESCE($8, cycle_day),
-           phase_key           = COALESCE($9, phase_key)
+       SET entry_date              = COALESCE($3, entry_date),
+           mood_ids                = COALESCE($4::jsonb, mood_ids),
+           active_schema_ids       = COALESCE($5::jsonb, active_schema_ids),
+           intensity               = COALESCE($6, intensity),
+           notes                   = COALESCE($7, notes),
+           cycle_day               = COALESCE($8, cycle_day),
+           phase_key               = COALESCE($9, phase_key),
+           symptoms                = COALESCE($10::jsonb, symptoms),
+           discharge               = COALESCE($11, discharge),
+           digestion               = COALESCE($12, digestion),
+           libido                  = COALESCE($13, libido),
+           symptom_notes           = COALESCE($14, symptom_notes),
+           completed_exercise_ids  = COALESCE($15::jsonb, completed_exercise_ids)
        WHERE id = $1 AND user_id = $2
-       RETURNING *`,
+       RETURNING ${DIARY_SELECT}`,
       [
         id, req.user.id,
         entryDate ?? null,
-        moodIds ? JSON.stringify(moodIds) : null,
-        activeSchemaIds ? JSON.stringify(activeSchemaIds) : null,
-        intensity ?? null,
-        notes ?? null,
-        cycleDay ?? null,
-        phaseKey ?? null,
+        fields.moodIds ?? null,
+        fields.activeSchemaIds ?? null,
+        fields.intensity ?? null,
+        fields.notes ?? null,
+        fields.cycleDay ?? null,
+        fields.phaseKey ?? null,
+        fields.symptoms ?? null,
+        fields.discharge ?? null,
+        fields.digestion ?? null,
+        fields.libido ?? null,
+        fields.symptomNotes ?? null,
+        fields.completedExerciseIds ?? null,
       ]
     );
     if (result.rowCount === 0) return res.status(404).json({ error: "Запись не найдена" });
@@ -480,7 +578,11 @@ app.post("/api/cycle", auth, async (req, res) => {
   try {
     const result = await query(
       `INSERT INTO cycle_entries (user_id, period_start_date, cycle_length, notes)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, period_start_date) DO UPDATE SET
+         cycle_length = EXCLUDED.cycle_length,
+         notes = EXCLUDED.notes
+       RETURNING *`,
       [req.user.id, periodStartDate, cycleLength, notes]
     );
     res.status(201).json(result.rows[0]);
@@ -495,7 +597,7 @@ app.post("/api/cycle", auth, async (req, res) => {
 app.get("/api/practices", auth, async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, practice_type, duration_sec, logged_at
+      `SELECT id, practice_type, duration_sec, logged_at, metadata
        FROM practice_logs WHERE user_id = $1 ORDER BY logged_at DESC`,
       [req.user.id]
     );
@@ -507,13 +609,30 @@ app.get("/api/practices", auth, async (req, res) => {
 });
 
 app.post("/api/practices", auth, async (req, res) => {
-  const { practiceType, durationSec = null, loggedAt = null } = req.body;
+  const { practiceType, durationSec = null, loggedAt = null, metadata = {} } = req.body;
   if (!practiceType) return res.status(400).json({ error: "practiceType обязателен" });
+  const safeMetadata = metadata && typeof metadata === "object" ? metadata : {};
+  const loggedAtValue = loggedAt || new Date().toISOString();
+
   try {
+    if (practiceType === "silence") {
+      const result = await query(
+        `INSERT INTO practice_logs (user_id, practice_type, duration_sec, logged_at, metadata)
+         VALUES ($1, $2, $3, COALESCE($4::timestamptz, now()), $5::jsonb)
+         ON CONFLICT (user_id, ((logged_at AT TIME ZONE 'UTC')::date))
+         WHERE practice_type = 'silence'
+         DO UPDATE SET metadata = EXCLUDED.metadata, logged_at = EXCLUDED.logged_at
+         RETURNING id, practice_type, duration_sec, logged_at, metadata`,
+        [req.user.id, practiceType, durationSec, loggedAtValue, JSON.stringify(safeMetadata)]
+      );
+      return res.status(201).json(result.rows[0]);
+    }
+
     const result = await query(
-      `INSERT INTO practice_logs (user_id, practice_type, duration_sec, logged_at)
-       VALUES ($1, $2, $3, COALESCE($4, now())) RETURNING *`,
-      [req.user.id, practiceType, durationSec, loggedAt]
+      `INSERT INTO practice_logs (user_id, practice_type, duration_sec, logged_at, metadata)
+       VALUES ($1, $2, $3, COALESCE($4::timestamptz, now()), $5::jsonb)
+       RETURNING id, practice_type, duration_sec, logged_at, metadata`,
+      [req.user.id, practiceType, durationSec, loggedAtValue, JSON.stringify(safeMetadata)]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -584,20 +703,55 @@ app.post("/api/import/local", auth, async (req, res) => {
     let diaryCount = 0;
     for (const item of diary) {
       await client.query(
-        `INSERT INTO diary_entries (user_id, entry_date, mood_ids, active_schema_ids, intensity, notes, cycle_day, phase_key)
-         VALUES ($1, COALESCE($2, current_date), $3::jsonb, $4::jsonb, $5, $6, $7, $8)
-         ON CONFLICT DO NOTHING`,
-        [req.user.id, item.date ?? null, JSON.stringify(item.moods ?? []), JSON.stringify(item.schemas ?? []), item.intensity ?? null, item.notes ?? "", item.cycleDay ?? null, item.phase ?? null]
+        `INSERT INTO diary_entries (
+           user_id, entry_date, mood_ids, active_schema_ids, intensity, notes,
+           cycle_day, phase_key, symptoms, discharge, digestion, libido,
+           symptom_notes, completed_exercise_ids
+         )
+         VALUES ($1, COALESCE($2, current_date), $3::jsonb, $4::jsonb, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14::jsonb)
+         ON CONFLICT (user_id, entry_date) DO UPDATE SET
+           mood_ids = EXCLUDED.mood_ids,
+           active_schema_ids = EXCLUDED.active_schema_ids,
+           intensity = EXCLUDED.intensity,
+           notes = EXCLUDED.notes,
+           cycle_day = EXCLUDED.cycle_day,
+           phase_key = EXCLUDED.phase_key,
+           symptoms = EXCLUDED.symptoms,
+           discharge = EXCLUDED.discharge,
+           digestion = EXCLUDED.digestion,
+           libido = EXCLUDED.libido,
+           symptom_notes = EXCLUDED.symptom_notes,
+           completed_exercise_ids = EXCLUDED.completed_exercise_ids,
+           updated_at = now()`,
+        [
+          req.user.id,
+          item.date ?? null,
+          JSON.stringify(item.moods ?? []),
+          JSON.stringify(item.schemas ?? []),
+          item.intensity ?? null,
+          item.notes ?? "",
+          item.cycleDay ?? null,
+          item.phase ?? null,
+          JSON.stringify(item.symptoms ?? []),
+          item.discharge ?? null,
+          item.digestion ?? null,
+          item.libido ?? null,
+          item.symptomNotes ?? "",
+          JSON.stringify(item.exercises ?? item.completedExerciseIds ?? []),
+        ]
       );
       diaryCount += 1;
     }
 
     let cycleCount = 0;
     for (const item of periodHistory) {
+      if (!item.date) continue;
       await client.query(
         `INSERT INTO cycle_entries (user_id, period_start_date, cycle_length, notes)
          VALUES ($1, $2, $3, $4)
-         ON CONFLICT DO NOTHING`,
+         ON CONFLICT (user_id, period_start_date) DO UPDATE SET
+           cycle_length = EXCLUDED.cycle_length,
+           notes = EXCLUDED.notes`,
         [req.user.id, item.date, item.cycleLength ?? null, item.flowIntensity ?? ""]
       );
       cycleCount += 1;
@@ -605,11 +759,20 @@ app.post("/api/import/local", auth, async (req, res) => {
 
     let practiceCount = 0;
     for (const item of silenceLogs) {
+      const metadata = {
+        dayNum: item.dayNum ?? null,
+        needsChecked: item.needsChecked ?? [],
+        morningNote: item.morningNote ?? "",
+        goodDone: item.goodDone ?? "",
+        goodTomorrow: item.goodTomorrow ?? "",
+      };
       await client.query(
-        `INSERT INTO practice_logs (user_id, practice_type, duration_sec, logged_at)
-         VALUES ($1, 'silence', NULL, COALESCE($2::timestamptz, now()))
-         ON CONFLICT DO NOTHING`,
-        [req.user.id, item.date ? `${item.date}T00:00:00Z` : null]
+        `INSERT INTO practice_logs (user_id, practice_type, duration_sec, logged_at, metadata)
+         VALUES ($1, 'silence', NULL, COALESCE($2::timestamptz, now()), $3::jsonb)
+         ON CONFLICT (user_id, ((logged_at at time zone 'UTC')::date))
+         WHERE practice_type = 'silence'
+         DO UPDATE SET metadata = EXCLUDED.metadata`,
+        [req.user.id, item.date ? `${item.date}T00:00:00Z` : null, JSON.stringify(metadata)]
       );
       practiceCount += 1;
     }

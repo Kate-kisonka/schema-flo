@@ -43,6 +43,9 @@ services:
       DATABASE_URL: postgresql://schema_flo:schema_flo@postgres:5432/schema_flo
       JWT_SECRET: local-dev-secret-change-me-min-32-chars
       FRONTEND_URL: http://localhost:5173
+      ALLOWED_ORIGINS: http://localhost:5173
+      # YANDEX_SMTP_USER: your-login@yandex.ru
+      # YANDEX_SMTP_PASS: your-app-password
     ports:
       - "3001:3001"
     depends_on:
