@@ -111,7 +111,7 @@ cd schema-flo
 ### Шаг 2 — Запустить
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 **Первый запуск занимает 3–10 минут** — Docker скачивает образы и устанавливает зависимости. Это нормально, последующие запуски займут 10–30 секунд.
@@ -150,7 +150,7 @@ schema-flo-frontend  | ➜  Local:   http://localhost:5173/
 ### Остановка
 
 ```bash
-docker compose down
+docker compose down 
 ```
 
 Данные БД сохраняются — при следующем `up` всё на месте.

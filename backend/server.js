@@ -3,9 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
 import { pool, query } from "./db.js";
-import { sendVerificationEmail } from "./email.js";
 
 dotenv.config();
 
@@ -18,7 +16,7 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,h
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
-const CODE_TTL_MINUTES = 10;
+
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
 // credentials: true нужен для будущих cookie-based flow
@@ -36,33 +34,6 @@ app.use(express.json({ limit: "2mb" }));
 function normalizeEmail(email) {
   return String(email || "").toLowerCase().trim();
 }
-
-function createVerificationCode() {
-  return crypto.randomInt(100000, 1000000).toString();
-}
-
-function hashVerificationCode(code) {
-  return crypto.createHash("sha256").update(code).digest("hex");
-}
-
-function buildFrontendAuthRedirect(user, accessToken) {
-  const params = new URLSearchParams({
-    token: accessToken,
-    user: JSON.stringify({ id: user.id, email: user.email }),
-  });
-  return `${FRONTEND_URL}/#auth=${encodeURIComponent(params.toString())}`;
-}
-
-async function saveAndSendVerificationCode(userId, email) {
-  const code = createVerificationCode();
-  await query(
-    `INSERT INTO email_verification_codes (user_id, code_hash, expires_at)
-     VALUES ($1, $2, now() + ($3 || ' minutes')::interval)`,
-    [userId, hashVerificationCode(code), CODE_TTL_MINUTES]
-  );
-  await sendVerificationEmail(email, code, CODE_TTL_MINUTES);
-}
-
 const DIARY_SELECT = `id, entry_date, mood_ids, active_schema_ids, intensity, notes,
   cycle_day, phase_key, symptoms, discharge, digestion, libido, symptom_notes,
   completed_exercise_ids, created_at, updated_at`;
@@ -163,88 +134,18 @@ app.post("/api/auth/register", async (req, res) => {
   try {
     const passwordHash = await bcrypt.hash(password, 12);
     const result = await query(
-      "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email",
-      [normalizedEmail, passwordHash]
+        "INSERT INTO users (email, password_hash, email_verified_at) VALUES ($1, $2, now()) RETURNING id, email",
+        [normalizedEmail, passwordHash]
     );
     const user = result.rows[0];
-    await saveAndSendVerificationCode(user.id, user.email);
-    res.status(201).json({ user, verificationRequired: true });
+    const accessToken = signToken(user);
+    res.status(201).json({ user, accessToken });
   } catch (err) {
     if (err.code === "23505") {
-      const existing = await query(
-        "SELECT id, email, password_hash, email_verified_at FROM users WHERE lower(email) = $1",
-        [normalizedEmail]
-      );
-      const user = existing.rows[0];
-      if (user && !user.email_verified_at && user.password_hash && await bcrypt.compare(password, user.password_hash)) {
-        await saveAndSendVerificationCode(user.id, user.email);
-        return res.json({ user: { id: user.id, email: user.email }, verificationRequired: true });
-      }
       return res.status(409).json({ error: "Пользователь с таким email уже существует" });
     }
     console.error("register error:", err.message);
     res.status(500).json({ error: "Ошибка регистрации" });
-  }
-});
-
-app.post("/api/auth/resend-code", async (req, res) => {
-  const email = normalizeEmail(req.body.email);
-  if (!email) return res.status(400).json({ error: "Email обязателен" });
-
-  try {
-    const result = await query("SELECT id, email, email_verified_at FROM users WHERE lower(email) = $1", [email]);
-    const user = result.rows[0];
-    if (!user) return res.status(404).json({ error: "Пользователь не найден" });
-    if (user.email_verified_at) return res.status(409).json({ error: "Email уже подтверждён" });
-
-    await saveAndSendVerificationCode(user.id, user.email);
-    res.json({ verificationRequired: true });
-  } catch (err) {
-    console.error("resend code error:", err.message);
-    res.status(500).json({ error: "Не удалось отправить код" });
-  }
-});
-
-app.post("/api/auth/verify-email", async (req, res) => {
-  const email = normalizeEmail(req.body.email);
-  const code = String(req.body.code || "").trim();
-  if (!email || !/^\d{6}$/.test(code)) return res.status(400).json({ error: "Нужны email и 6-значный код" });
-
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const userResult = await client.query(
-      "SELECT id, email FROM users WHERE lower(email) = $1 FOR UPDATE",
-      [email]
-    );
-    const user = userResult.rows[0];
-    if (!user) {
-      await client.query("rollback");
-      return res.status(404).json({ error: "Пользователь не найден" });
-    }
-
-    const codeResult = await client.query(
-      `SELECT id FROM email_verification_codes
-       WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL AND expires_at > now()
-       ORDER BY created_at DESC LIMIT 1`,
-      [user.id, hashVerificationCode(code)]
-    );
-    if (codeResult.rowCount === 0) {
-      await client.query("rollback");
-      return res.status(401).json({ error: "Код неверный или устарел" });
-    }
-
-    await client.query("UPDATE email_verification_codes SET used_at = now() WHERE id = $1", [codeResult.rows[0].id]);
-    await client.query("UPDATE users SET email_verified_at = COALESCE(email_verified_at, now()) WHERE id = $1", [user.id]);
-    await client.query("commit");
-
-    res.json({ user: { id: user.id, email: user.email }, accessToken: signToken(user) });
-  } catch (err) {
-    await client.query("rollback");
-    console.error("verify email error:", err.message);
-    res.status(500).json({ error: "Не удалось подтвердить email" });
-  } finally {
-    client.release();
   }
 });
 
@@ -340,7 +241,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
     res.redirect(`${FRONTEND_URL}/?authError=google_auth_failed`);
   }
 });
-
+//Логин иошибки с ним
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email и пароль обязательны" });
@@ -354,14 +255,9 @@ app.post("/api/auth/login", async (req, res) => {
     const user = result.rows[0];
     // Одинаковые сообщения — безопасная практика (не раскрываем какого поля нет)
     if (!user) return res.status(401).json({ error: "Неверный email или пароль" });
-
     if (!user.password_hash) return res.status(401).json({ error: "Войдите через Google для этого аккаунта" });
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) return res.status(401).json({ error: "Неверный email или пароль" });
-    if (!user.email_verified_at) {
-      await saveAndSendVerificationCode(user.id, user.email);
-      return res.status(403).json({ error: "Нужно подтвердить email", verificationRequired: true });
-    }
 
     res.json({ user: { id: user.id, email: user.email }, accessToken: signToken(user) });
   } catch (err) {

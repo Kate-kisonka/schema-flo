@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import {
   login as apiLogin,
   register as apiRegister,
-  verifyEmail as apiVerifyEmail,
-  resendCode as apiResendCode,
-  getMe,
+  getMe
 } from "../services/authApi";
 
 const TOKEN_KEY = "auth_token";
@@ -72,19 +70,9 @@ export function useAuth() {
 
   const register = async (email, password) => {
     setError(null);
-    return apiRegister(email, password);
-  };
-
-  const verifyEmail = async (email, code) => {
-    setError(null);
-    const { token, user } = await apiVerifyEmail(email, code);
+    const { token, user } = await apiRegister(email, password);
     saveAuthSession(token, user);
     setUser(user);
-  };
-
-  const resendCode = async (email) => {
-    setError(null);
-    return apiResendCode(email);
   };
 
   const logout = () => {
@@ -94,5 +82,5 @@ export function useAuth() {
 
   const getToken = () => localStorage.getItem(TOKEN_KEY);
 
-  return { user, loading, error, setError, login, register, verifyEmail, resendCode, logout, getToken };
+  return { user, loading, error, setError, login, register, logout, getToken };
 }

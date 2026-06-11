@@ -25,9 +25,7 @@ export default function App() {
   const [schemaPopup, setSchemaPopup] = useState(null);
   const [authScreen, setAuthScreen] = useState("login"); // "login" | "register"
   const [authNotice, setAuthNotice] = useState(null);
-
   const auth = useAuth();
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get("authError");
@@ -71,8 +69,6 @@ export default function App() {
       return (
         <RegisterScreen
           onRegister={auth.register}
-          onVerifyEmail={auth.verifyEmail}
-          onResendCode={auth.resendCode}
           onGoLogin={() => { auth.setError(null); setAuthNotice(null); setAuthScreen("login"); }}
           error={auth.error || authNotice}
           setError={auth.setError}
@@ -82,8 +78,6 @@ export default function App() {
     return (
       <LoginScreen
         onLogin={auth.login}
-        onVerifyEmail={auth.verifyEmail}
-        onResendCode={auth.resendCode}
         onGoRegister={() => { auth.setError(null); setAuthNotice(null); setAuthScreen("register"); }}
         error={auth.error || authNotice}
         setError={auth.setError}

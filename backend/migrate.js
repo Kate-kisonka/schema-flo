@@ -1,6 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath } from 'url';
 import { pool } from "./db.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -50,5 +50,4 @@ async function run() {
     await pool.end();
   }
 }
-
 run();

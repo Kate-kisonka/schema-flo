@@ -23,7 +23,7 @@ export function register(email, password) {
   return request("/api/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, password }),
-  });
+  }).then(({ accessToken, user }) => ({ token: accessToken, user }));
 }
 
 export function login(email, password) {
@@ -31,20 +31,6 @@ export function login(email, password) {
     method: "POST",
     body: JSON.stringify({ email, password }),
   }).then(({ accessToken, user }) => ({ token: accessToken, user }));
-}
-
-export function verifyEmail(email, code) {
-  return request("/api/auth/verify-email", {
-    method: "POST",
-    body: JSON.stringify({ email, code }),
-  }).then(({ accessToken, user }) => ({ token: accessToken, user }));
-}
-
-export function resendCode(email) {
-  return request("/api/auth/resend-code", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
 }
 
 export function getMe(token) {
