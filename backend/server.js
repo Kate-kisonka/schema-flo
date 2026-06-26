@@ -3,12 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { pool, query } from "./db.js";
+import { pool, query } from "./db.js"; //подключение к бд и обработка скюль запросов
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001; //
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
 
@@ -585,7 +585,7 @@ app.put("/api/state", auth, async (req, res) => {
   }
 });
 
-// ─── Импорт локальных данных (одноразовая миграция с localStorage/Dexie) ──────
+// ─── Импорт локальных данных  ──────
 
 app.post("/api/import/local", auth, async (req, res) => {
   const { diary = [], periodHistory = [], silenceLogs = [] } = req.body;
@@ -599,7 +599,7 @@ app.post("/api/import/local", auth, async (req, res) => {
     let diaryCount = 0;
     for (const item of diary) {
       await client.query(
-        `INSERT INTO diary_entries (
+        `INSERT INTO diary_entries ( 
            user_id, entry_date, mood_ids, active_schema_ids, intensity, notes,
            cycle_day, phase_key, symptoms, discharge, digestion, libido,
            symptom_notes, completed_exercise_ids

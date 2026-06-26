@@ -37,6 +37,13 @@ services:
     container_name: schema-flo-backend
     restart: unless-stopped
     command: sh -c "npm run migrate && npm start"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`localhost`) && PathPrefix(`/api/`)"
+      - "traefik.http.routers.backend.tls=true"
+      - "traefik.http.services.backend.loadbalancer.server.port=3001"
+
+
     environment:
       NODE_ENV: development
       PORT: 3001
@@ -44,8 +51,8 @@ services:
       JWT_SECRET: local-dev-secret-change-me-min-32-chars
       FRONTEND_URL: http://localhost:5173
       ALLOWED_ORIGINS: http://localhost:5173
-      # YANDEX_SMTP_USER: your-login@yandex.ru
-      # YANDEX_SMTP_PASS: your-app-password
+
+
     ports:
       - "3001:3001"
     depends_on:
@@ -57,6 +64,10 @@ services:
     container_name: schema-flo-frontend
     working_dir: /app
 
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`localhost`)"  #Принимать запросы на http://localhost
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173" # Пересылать их на порт фронтенда
 
     environment:
       VITE_API_URL: http://localhost:3001
@@ -69,6 +80,29 @@ services:
     depends_on:
       - backend
 
+  traefik:
+     image: traefik:v3.7
+     command:
+       - "--log.level=DEBUG"
+       - "--api.insecure=true"
+       - "--providers.docker=true"
+       - "--entrypoints.web.address=:80"
+     ports:
+       - "80:80"
+       - "8080:8080"
+     volumes:
+       - /var/run/docker.sock:/var/run/docker.sock
+  caddy:
+     image: caddy:latest
+     container_name: schema-flo-caddy
+     restart: unless-stopped
+     ports:
+       - "81:81"
+       - "443:443"
+     volumes:
+       - ./Caddyfile:/etc/caddy/Caddyfile
+       - ./data:/data
+       - ./config:/config
 volumes:
   postgres_data:
   pgadmin_data:
