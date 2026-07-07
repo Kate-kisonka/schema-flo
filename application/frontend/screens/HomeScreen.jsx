@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { T } from "../constants/theme";
-import { CYCLE_PHASES, MOODS_BASIC, MOODS_EXTENDED, DISCHARGE_TYPES, DIGESTION, LIBIDO, PHYSICAL_SYMPTOMS, SCHEMAS, DOMAINS } from "../data";
-import { getPhase, getTodayKey } from "../utils";
+import { T } from "../constants/theme.js";
+import { CYCLE_PHASES, MOODS_BASIC, MOODS_EXTENDED, DISCHARGE_TYPES, DIGESTION, LIBIDO, PHYSICAL_SYMPTOMS, SCHEMAS, DOMAINS } from "../data.js";
+import { getPhase, getTodayKey } from "../utils.js";
 
 const DIARY_STEPS = ["Настроение", "Тело", "Схемы", "Заметки"];
 

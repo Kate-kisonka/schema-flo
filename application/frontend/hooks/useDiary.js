@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { getTodayKey } from "../utils";
-import { dbDiary } from "../services/db";
+import { getTodayKey } from "../utils.js";
+import { dbDiary } from "../services/db.js";
 
 export function useDiary() {
   const [logs, setLogsRaw] = useState([]);

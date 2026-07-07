@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { T } from "../constants/theme";
-import { SCHEMAS, MOODS, CYCLE_PHASES, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS } from "../data";
-import { getPhase, getTodayKey, formatDate, getDayOfWeek, buildCalendarDays, shiftMonth, parseLocalDate } from "../utils";
-import { importBackup } from "../services/db";
+import { T } from "../constants/theme.js";
+import { SCHEMAS, MOODS, CYCLE_PHASES, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS } from "../data.js";
+import { getPhase, getTodayKey, formatDate, getDayOfWeek, buildCalendarDays, shiftMonth, parseLocalDate } from "../utils.js";
+import { importBackup } from "../services/db.js";
 
 const S = {
   content:    { padding: "0 16px 100px" },

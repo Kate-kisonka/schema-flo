@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { getTodayKey, parseLocalDate } from "../utils";
-import { dbCycle, dbPeriod } from "../services/db";
+import { getTodayKey, parseLocalDate } from "../utils.js";
+import { dbCycle, dbPeriod } from "../services/db.js";
 
 export function useCycle() {
   const [cycleDay, setCycleDayRaw]               = useState(14);

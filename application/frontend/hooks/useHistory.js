@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { SCHEMAS, MOODS, CYCLE_PHASES } from "../data";
-import { getPhase, getTodayKey } from "../utils";
+import { SCHEMAS, MOODS, CYCLE_PHASES } from "../data.js";
+import { getPhase, getTodayKey } from "../utils.js";
 
 export function useHistory(logs) {
   const last14 = useMemo(() => logs.slice(0, 14).reverse(), [logs]);

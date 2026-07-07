@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { getTodayKey } from "../utils";
-import { sendAIMessage } from "../services/ai";
-import { SCHEMAS, MOODS, QUICK_STATES } from "../data";
-import { dbAISessions } from "../services/db";
+import { getTodayKey } from "../utils.js";
+import { sendAIMessage } from "../services/ai.js";
+import { SCHEMAS, MOODS, QUICK_STATES } from "../data.js";
+import { dbAISessions } from "../services/db.js";
 
 export function useAI({ cycleDay, phase, selectedMoods, activeSchemas, intensity, notes }) {
   const [aiMessages,      setAiMessages]      = useState([]);
