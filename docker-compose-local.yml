@@ -1,16 +1,16 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.14-alpine3.24
     container_name: schema-flo-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: schema_flo
       POSTGRES_USER: schema_flo
       POSTGRES_PASSWORD: schema_flo
-    ports:
-      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - source: postgres_data
+        target: /var/lib/postgresql/data
+        type: volume
     networks:
       - schema_flo_network
     healthcheck:
@@ -27,17 +27,24 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: schema_flo
     ports:
-      - "5050:80"
+      - target: 80 
+        published: 5050
+        protocol: tcp
+        mode: host
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - source: pgadmin_data
+        target: /var/lib/pgadmin
+        type: volume
     networks:
       - schema_flo_network
 
   backend:
-    build: application/backend
+    build:
+      context: application/backend
+      dockerfile: ../../deploy/local/Dockerfile
     container_name: schema-flo-backend
     restart: unless-stopped
     command: sh -c "npm run migrate && npm start"
@@ -49,7 +56,10 @@ services:
       FRONTEND_URL: http://localhost/
       ALLOWED_ORIGINS: http://localhost/
     ports:
-      - "3001"
+      - target: 3001
+        published: 3001
+        protocol: tcp
+        mode: host
     networks:
       - schema_flo_network
     depends_on:
@@ -62,16 +72,23 @@ services:
       retries: 3
 
   frontend:
-    image: node:20-alpine
+    image: node:20.20.2-alpine3.23
     container_name: schema-flo-frontend
     working_dir: /app
     environment:
       VITE_API_URL: http://localhost:3001
     volumes:
-      - .:/app
-      - frontend_node_modules:/app/node_modules
+      - source: ./application/frontend
+        target: /app
+        type: bind
+      - source: frontend_node_modules
+        target: /app/node_modules
+        type: volume
     ports:
-      - "5173"
+      - target: 5173
+        published: 5173
+        protocol: tcp
+        mode: host
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     networks:
       - schema_flo_network
@@ -79,7 +96,7 @@ services:
       - backend
 
   traefik:
-    image: traefik:v3.7.1@sha256:6b9cbca6fac42ab0075f5437d8dc1685cfd188626d8d515839ea94f8b6271c42
+    image: traefik:v3.7.1
     container_name: schema-flo-traefik
     restart: unless-stopped
     command:
@@ -90,12 +107,11 @@ services:
       - "--providers.docker.exposedbydefault=false" #не роутит контейнер если у него нет true
       - "--providers.docker.watch=true" #следит за изменениями в реалтайм
       - "--providers.docker.network=schema_flo_network" #сеть/коридор для работы кади, траефик
-      - "--api.dashboard=true" #веб траефика
+      - "--api.dashboard=true" #веб-морда траефика
       - "--api.insecure=true" #открывает дашборд без пароля. только для локального использования
       - "--ping=true" #
-      - "--ping.entryPoint=traefik" #
+      - "--ping.entryPoint=web" #
       - "--entrypoints.web.address=:80" #точка входа для траефик, сюда стучится браузер
-      -
     environment:
       - TZ=Europe/Moscow #для логов, чтобы корректное время отображалось
     volumes:
@@ -127,21 +143,22 @@ services:
         max-file: "3"
 
   caddy:
-    image: caddy:2.11.3-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
+    image: caddy:2.11.3-alpine
     container_name: schema-flo-caddy
     restart: unless-stopped
     command: caddy run --config /etc/caddy/Caddyfile #иди за инструкцией по этому пути
     volumes:
       - type: bind
-        source: ./application/backend/Caddyfile
+        source: ./deploy/local/Caddyfile
         target: /etc/caddy/Caddyfile
         read_only: true #здесь бэк, читай но не изменяй
       - type: volume
         source: caddy_data
-        target: /data #здесь лежат вещи кадди - серты tls, ключи шифрования. чтобы не перезапусками
+        target: /data #здесь лежат "вещи" кадди - серты tls, ключи шифрования. чтобы не перезапусками
       - type: volume
         source: caddy_config
         target: /config #автосохранение последнего рабочего состояния. джейсон last_clean.json
+    networks:
       - schema_flo_network
     labels: #регистрируют кадди у траефика
       - "traefik.enable=true"
@@ -157,12 +174,13 @@ services:
       frontend:
         condition: service_started
 
-#volumes:
- # postgres_data:
-  #pgadmin_data:
-  #frontend_node_modules:
-  #caddy_data:
-  #caddy_config:
+#это нужно?
+volumes:
+  postgres_data:
+  pgadmin_data:
+  frontend_node_modules:
+  caddy_data:
+  caddy_config:
 
 networks: #создали сеть-коридор
   schema_flo_network:
