@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { getTodayKey, parseLocalDate } from "../utils";
-import { dbSilence, dbSilenceLogs } from "../services/db";
+import { getTodayKey, parseLocalDate } from "../utils.js";
+import { dbSilence, dbSilenceLogs } from "../services/db.js";
 
 export function useSilence() {
   const [silenceActive,    setSilenceActiveRaw]    = useState(false);

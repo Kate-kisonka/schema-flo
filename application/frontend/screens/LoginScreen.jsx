@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { T } from "../constants/theme";
-import { getGoogleAuthUrl } from "../services/authApi";
+import { T } from "../constants/theme.js";
+import { getGoogleAuthUrl } from "../services/authApi.js";
 
 export default function LoginScreen({ onLogin, onGoRegister, error, setError }) {
     const [email, setEmail] = useState("");

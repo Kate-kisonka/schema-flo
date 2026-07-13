@@ -1,0 +1,188 @@
+services:
+  postgres:
+    image: postgres:16.14-alpine3.24
+    container_name: schema-flo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: schema_flo
+      POSTGRES_USER: schema_flo
+      POSTGRES_PASSWORD: schema_flo
+    volumes:
+      - source: postgres_data
+        target: /var/lib/postgresql/data
+        type: volume
+    networks:
+      - schema_flo_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schema_flo -d schema_flo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: schema-flo-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: schema_flo
+    ports:
+      - target: 80 
+        published: 5050
+        protocol: tcp
+        mode: host
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - source: pgadmin_data
+        target: /var/lib/pgadmin
+        type: volume
+    networks:
+      - schema_flo_network
+
+  backend:
+    build:
+      context: application/backend
+      dockerfile: ../../deploy/local/Dockerfile
+    container_name: schema-flo-backend
+    restart: unless-stopped
+    command: sh -c "npm run migrate && npm start"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://schema_flo:schema_flo@postgres:5432/schema_flo
+      JWT_SECRET: local-dev-secret-change-me-min-32-chars
+      FRONTEND_URL: http://localhost/
+      ALLOWED_ORIGINS: http://localhost/
+    ports:
+      - target: 3001
+        published: 3001
+        protocol: tcp
+        mode: host
+    networks:
+      - schema_flo_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: node:20.20.2-alpine3.23
+    container_name: schema-flo-frontend
+    working_dir: /app
+    environment:
+      VITE_API_URL: http://localhost:3001
+    volumes:
+      - source: ./application/frontend
+        target: /app
+        type: bind
+      - source: frontend_node_modules
+        target: /app/node_modules
+        type: volume
+    ports:
+      - target: 5173
+        published: 5173
+        protocol: tcp
+        mode: host
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - schema_flo_network
+    depends_on:
+      - backend
+
+  traefik:
+    image: traefik:v3.7.1
+    container_name: schema-flo-traefik
+    restart: unless-stopped
+    command:
+      - "--log.level=DEBUG" #логи. смотрим как находят контейнеры, строит пути
+      - "--global.checknewversion=false" #отключает поиск глоб.акт.версии
+      - "--global.sendanonymoususage=false" #откл статистики для разрабов траефика
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock" #указываем реверс-прокси что надо общаться с докер через сокет. так читаем список контейнеров и их лэйблы
+      - "--providers.docker.exposedbydefault=false" #не роутит контейнер если у него нет true
+      - "--providers.docker.watch=true" #следит за изменениями в реалтайм
+      - "--providers.docker.network=schema_flo_network" #сеть/коридор для работы кади, траефик
+      - "--api.dashboard=true" #веб-морда траефика
+      - "--api.insecure=true" #открывает дашборд без пароля. только для локального использования
+      - "--ping=true" #
+      - "--ping.entryPoint=web" #
+      - "--entrypoints.web.address=:80" #точка входа для траефик, сюда стучится браузер
+    environment:
+      - TZ=Europe/Moscow #для логов, чтобы корректное время отображалось
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock #указываем адрес по которому можно узнать список контейнеров
+        target: /var/run/docker.sock
+        read_only: true #только читаем
+    networks:
+      - schema_flo_network #создали коридор для общения с кадди
+    ports:
+      - target: 80 #внутри контейнера для прохода дальше
+        published: 80 #наружу, можно войти снаружи
+        protocol: tcp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.schema_flo_dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.schema_flo_dashboard.entrypoints=web"
+      - "traefik.http.routers.schema_flo_dashboard.service=api@internal"
+    healthcheck: #если нездоров, то до кадди не доходит. проверка каждые 30 сек
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    image: caddy:2.11.3-alpine
+    container_name: schema-flo-caddy
+    restart: unless-stopped
+    command: caddy run --config /etc/caddy/Caddyfile #иди за инструкцией по этому пути
+    volumes:
+      - type: bind
+        source: ./deploy/local/Caddyfile
+        target: /etc/caddy/Caddyfile
+        read_only: true #здесь бэк, читай но не изменяй
+      - type: volume
+        source: caddy_data
+        target: /data #здесь лежат "вещи" кадди - серты tls, ключи шифрования. чтобы не перезапусками
+      - type: volume
+        source: caddy_config
+        target: /config #автосохранение последнего рабочего состояния. джейсон last_clean.json
+    networks:
+      - schema_flo_network
+    labels: #регистрируют кадди у траефика
+      - "traefik.enable=true"
+      - "traefik.http.routers.schema_flo_caddy.rule=Host(`localhost`)" #шли ко мне если пришли на локалхост
+      - "traefik.http.routers.schema_flo_caddy.entrypoints=web" #через 80 порт
+      - "traefik.http.routers.schema_flo_caddy.service=schema_flo_caddy_service" #опять прописала сеть-коридор для работы кади/траефик
+      - "traefik.http.services.schema_flo_caddy_service.loadbalancer.server.port=81" #ко мне можно попасть через 81 порт
+    depends_on: #не запускаюсь пока траифек не будет здоров, а бэк и фронт - запущены
+      traefik:
+        condition: service_healthy
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+
+#это нужно?
+volumes:
+  postgres_data:
+  pgadmin_data:
+  frontend_node_modules:
+  caddy_data:
+  caddy_config:
+
+networks: #создали сеть-коридор
+  schema_flo_network:
+    name: schema_flo_network
+    attachable: true

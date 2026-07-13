@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { T } from "../constants/theme";
-import { formatDate } from "../utils";
+import { T } from "../constants/theme.js";
+import { formatDate } from "../utils.js";
 
 const S = {
   content: { padding: "0 16px 100px" },

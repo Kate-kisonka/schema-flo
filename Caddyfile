@@ -1,3 +1,0 @@
-:81 {
-    reverse_proxy schema-flo-backend:3001
-}

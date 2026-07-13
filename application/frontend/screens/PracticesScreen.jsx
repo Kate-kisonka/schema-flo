@@ -1,8 +1,8 @@
 import React from "react";
-import { T } from "../constants/theme";
-import { EXERCISES, NEEDS, NEED_LEVELS } from "../data";
-import { formatDate, getTodayKey } from "../utils";
-import Breathing478 from "../components/Breathing478";
+import { T } from "../constants/theme.js";
+import { EXERCISES, NEEDS, NEED_LEVELS } from "../data.js";
+import { formatDate, getTodayKey } from "../utils.js";
+import Breathing478 from "../components/Breathing478.jsx";
 
 const S = {
   content:    { padding: "0 16px 100px" },

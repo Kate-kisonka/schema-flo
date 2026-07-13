@@ -1,7 +1,7 @@
 import React from "react";
-import { T } from "../constants/theme";
-import { SCHEMAS, MOODS, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS, EXERCISES } from "../data";
-import { getPhase, formatDate, getDayOfWeek } from "../utils";
+import { T } from "../constants/theme.js";
+import { SCHEMAS, MOODS, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS, EXERCISES } from "../data.js";
+import { getPhase, formatDate, getDayOfWeek } from "../utils.js";
 
 const S = {
   card: { background: T.card, borderRadius: 12, padding: "16px", marginBottom: 8, border: `1px solid ${T.border}` },

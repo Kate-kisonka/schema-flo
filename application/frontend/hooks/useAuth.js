@@ -3,7 +3,7 @@ import {
   login as apiLogin,
   register as apiRegister,
   getMe
-} from "../services/authApi";
+} from "../services/authApi.js";
 
 const TOKEN_KEY = "auth_token";
 const USER_KEY = "auth_user";

@@ -1,4 +1,4 @@
-import { CYCLE_PHASES } from "./data";
+import { CYCLE_PHASES } from "./data.js";
 
 export function getPhase(day) {
   return CYCLE_PHASES.find(p => p.days.includes(day)) || CYCLE_PHASES[3];

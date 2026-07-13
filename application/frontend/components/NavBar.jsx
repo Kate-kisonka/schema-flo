@@ -1,5 +1,5 @@
 import React from "react";
-import { T } from "../constants/theme";
+import { T } from "../constants/theme.js";
 
 const NAV_ITEMS = [
   { id: "home",      icon: "🌙", label: "День"      },
