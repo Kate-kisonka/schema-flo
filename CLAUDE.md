@@ -1,0 +1,60 @@
+# schema-flo
+
+Персональный трекер психического состояния, менструального цикла и практик самоподдержки.
+
+## Стек
+- **Backend:** Node.js (Express 5, ESM), PostgreSQL через `pg`, JWT-аутентификация + Google OAuth. Код в `application/backend/`.
+- **Frontend:** React 19 + Vite. Код в `application/frontend/`.
+- **Инфраструктура:** Traefik (входная точка, :80) → Caddy (:81, роутинг по пути) → backend:3001 / frontend:5173.
+- Локальный запуск — через `docker-compose-local.yml` в корне.
+
+## Структура
+- `application/backend/` — сервер (server.js, db.js, migrate.js), схема БД в `migrations/*.sql` (применяются по алфавиту при старте контейнера).
+- `application/frontend/` — экраны (`screens/`), компоненты (`components/`), хуки (`hooks/`), API-слой (`services/`), дизайн-токены (`constants/theme.js`).
+- `deploy/local/` — Dockerfile бэкенда и Caddyfile. `deploy/dev/`, `deploy/prod/` — заготовки под будущие окружения. Компоуз-файлы живут в корне.
+- Все импорты — с явными расширениями (`./utils.js`, а не `./utils`).
+- Backend API целиком висит на префиксе `/api/*` — это используется в `deploy/local/Caddyfile` для роутинга.
+- AI-функциональность (`application/frontend/hooks/useAI.js`, `application/frontend/services/ai.js`) заморожена до переработки — не трогать без явного запроса.
+
+## Git и ревью
+- Два remote: `company` — корпоративный Gitea (git.solutions.ooo/emelina/schema-flo), основной, там идёт код-ревью в PR; `origin` — GitHub (Kate-kisonka/schema-flo).
+- Рабочая ветка `main` синхронизируется с `company/main`.
+
+### Конвенции из код-ревью (обязательны)
+- Теги образов указывать точно (`postgres:16.14-alpine3.24`), БЕЗ ручного `@sha256:` — пиннинг по digest делает renovate-бот.
+- `ports` и `volumes` в compose — только длинная форма (`target/published/protocol/mode`; `source/target/type`).
+- Порт postgres наружу не публиковать: доступ к БД только изнутри docker-сети, для ручного просмотра — pgadmin (:5050).
+- Docker- и конфиг-файлы — в `deploy/<env>/`, компоуз-файлы — в корне.
+
+## Команды
+- `docker compose -f docker-compose-local.yml up -d` — поднять весь стек (postgres, backend, frontend, traefik, caddy, pgadmin).
+- `docker compose -f docker-compose-local.yml config` — проверить compose-файл на синтаксис перед коммитом.
+- Backend-миграции: `npm run migrate` в `application/backend` (запускаются автоматически при старте контейнера backend).
+- Frontend lint: `npm run lint` в `application/frontend`.
+
+## Субагенты (.claude/agents/)
+- `tester` — QA: баги, нестыковки frontend/backend/БД, UI-сценарии. Только читает и проверяет, код не правит.
+- `backend-dev` — Express API, миграции, auth. Территория: `application/backend/**`.
+- `frontend-dev` — React UI, хуки, services. Территория: `application/frontend/**`.
+- `ui-ux-designer` — визуальная консистентность, доступность, адаптивность, тон текстов. Территория: `application/frontend/**`, логику не правит.
+- `devops` — compose, Traefik/Caddy, Dockerfile, `deploy/`, `.gitignore`, CI. Код приложения не трогает.
+- `security-reviewer` — аудит auth, изоляции user_id, секретов, зависимостей, приватности данных здоровья. Только отчёт, код не правит.
+
+### Оркестрация
+- Маршрутизация по территории: `application/backend` → backend-dev; `application/frontend` → frontend-dev (логика) или ui-ux-designer (вид/доступность); compose/deploy/роутинг → devops.
+- После содержательных правок dev-агентов — прогонять tester по затронутому сценарию; перед PR с изменениями auth/данных — security-reviewer.
+- Проверяющие роли (tester, security-reviewer) не правят код by design; dev-роли не заходят на чужую территорию — вместо этого возвращают рекомендацию для соседней роли.
+- Ни один агент не делает commit/push сам — только по явной просьбе владелицы.
+
+## Как со мной работать (правила от владелицы проекта)
+- **Я учусь на этом проекте** — объясняй ПОЧЕМУ сделано так, а не только что изменилось. Простым языком, с аналогиями. Но без лишних кругов ради самих объяснений.
+- **Не расширяй скоуп.** Если задача — «точечно поправить N файлов», не трогай остальное без вопроса.
+- **Делай конфиг за один проход.** При адаптации по образцу — прочитай образец целиком, сверь ВСЕ поля заранее, потом одна правка. Не растягивай на 4-5 итераций.
+- **Не пиши комментарии в конфигах** (docker-compose, Caddyfile) — пояснения давай в чате. Существующие комментарии владелицы в конфигах сохранять дословно.
+- **Вопрос ≠ претензия.** Если моё сообщение похоже и на вопрос, и на недовольство — переспроси, что именно не так. Не откатывай сделанное на догадках.
+
+## Известные незакрытые моменты
+- Google OAuth в docker-стеке не сконфигурирован (`GOOGLE_*` переменных нет в compose). При настройке: `GOOGLE_REDIRECT_URI` должен быть `http://localhost/api/auth/google/callback` (через прокси, порт 3001 наружу больше не опубликован) и этот же URI надо зарегистрировать в Google Cloud Console. Значение в `application/backend/.env.example` со старым `:3001` — поправить при настройке.
+- Секреты захардкожены в compose (JWT_SECRET, пароли postgres/pgadmin) — для локалки терпимо, перед любым внешним окружением вынести в `.env` (шаблоны: `application/*/.env.example`).
+- В git отслеживается `data/` с runtime-файлами caddy, включая приватный ключ `data/caddy/certificates/.../localhost.key` (самоподписанный локальный — риск низкий, но в git ему не место). Добавить `data/` в `.gitignore` и убрать из индекса.
+- Rate-limiting логина (`loginLimiter` + `express-rate-limit`) не закоммичен нигде — сохранён как `patches/rate-limit-login.patch` (пути в патче старые, корневой `backend/`; накладывать на `application/backend/` с поправкой пути). Удалить патч после применения или отказа от него.
