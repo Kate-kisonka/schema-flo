@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { getTodayKey, parseLocalDate } from "../utils.js";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { getTodayKey, toDateKey, parseLocalDate, avgCycleLength as calcAvgCycleLength } from "../utils.js";
 import { dbCycle, dbPeriod } from "../services/db.js";
 
 export function useCycle() {
@@ -10,17 +10,28 @@ export function useCycle() {
   const [showPeriodConfirm, setShowPeriodConfirm] = useState(false);
   const [showFlowQuestion,  setShowFlowQuestion]  = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // true, когда /api/state не удалось загрузить (сеть/сервер) — в этом
+  // случае cycleDay в состоянии может быть подставным, и UI не должен
+  // показывать его как настоящий день цикла
+  const [cycleLoadError, setCycleLoadError] = useState(false);
+  const skipNextSave = useRef(false);
 
   const reloadCycle = useCallback(async () => {
-    const state = await dbCycle.get();
-    if (state) {
+    try {
+      const state = await dbCycle.get();
       setCycleDayRaw(state.cycleDay ?? 14);
       setPeriodStartDateRaw(state.periodStartDate ?? null);
       setPeriodActiveRaw(state.periodActive ?? false);
       setPeriodHistoryRaw(state.periodHistory ?? []);
+      setCycleLoadError(false);
+      return state;
+    } catch (err) {
+      setCycleLoadError(true);
+      throw err;
+    } finally {
+      skipNextSave.current = true;
+      setLoaded(true);
     }
-    setLoaded(true);
-    return state;
   }, []);
 
   useEffect(() => {
@@ -33,7 +44,7 @@ export function useCycle() {
     const today = parseLocalDate(getTodayKey());
     const start = parseLocalDate(periodStartDate);
     const diff = Math.floor((today - start) / 86400000) + 1;
-    setCycleDayRaw(Math.min(Math.max(diff, 1), 28));
+    setCycleDayRaw(Math.max(diff, 1));
   }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Автозавершение менструации на 6-й день
@@ -43,10 +54,21 @@ export function useCycle() {
 
   useEffect(() => {
     if (!loaded) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
     dbCycle.save({ cycleDay, periodStartDate, periodActive });
   }, [cycleDay, periodStartDate, periodActive, loaded]);
 
-  const setCycleDay = (day) => setCycleDayRaw(day);
+  // Ручной выбор дня — это калибровка: сдвигаем дату начала цикла,
+  // иначе пересчёт при следующем запуске вернёт старый день
+  const setCycleDay = (day) => {
+    setCycleDayRaw(day);
+    const start = parseLocalDate(getTodayKey());
+    start.setDate(start.getDate() - (day - 1));
+    setPeriodStartDateRaw(toDateKey(start));
+  };
 
   const startPeriod = (flowIntensity) => {
     const today = getTodayKey();
@@ -65,12 +87,7 @@ export function useCycle() {
 
   const endPeriod = () => setPeriodActiveRaw(false);
 
-  const avgCycleLength = () => {
-    const lens = periodHistory
-      .filter(p => p.cycleLength && p.cycleLength > 15 && p.cycleLength < 50)
-      .map(p => p.cycleLength);
-    return lens.length ? Math.round(lens.reduce((a, b) => a + b, 0) / lens.length) : null;
-  };
+  const avgCycleLength = () => calcAvgCycleLength(periodHistory);
 
   return {
     cycleDay, setCycleDay,
@@ -83,5 +100,6 @@ export function useCycle() {
     endPeriod,
     avgCycleLength,
     reloadCycle,
+    cycleLoadError,
   };
 }

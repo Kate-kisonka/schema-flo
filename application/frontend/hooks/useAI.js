@@ -47,6 +47,7 @@ export function useAI({ cycleDay, phase, selectedMoods, activeSchemas, intensity
   };
 
   const sendToAI = async (overrideInput) => {
+    if (aiLoading) return;
     const text = overrideInput || aiInput;
     if (!text.trim()) return;
 
@@ -72,6 +73,7 @@ export function useAI({ cycleDay, phase, selectedMoods, activeSchemas, intensity
   };
 
   const getAIRecommendations = async () => {
+    if (aiLoading) return;
     const schemaNames = activeSchemas.map(id => SCHEMAS.find(s => s.id === id)?.name).filter(Boolean).join(", ");
     const prompt = `На основании заметки предложи 2-3 конкретные техники (схема-терапия или КПТ). Для каждой: название + одна фраза почему подходит.
 

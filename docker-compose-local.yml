@@ -53,13 +53,8 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://schema_flo:schema_flo@postgres:5432/schema_flo
       JWT_SECRET: local-dev-secret-change-me-min-32-chars
-      FRONTEND_URL: http://localhost/
-      ALLOWED_ORIGINS: http://localhost/
-    ports:
-      - target: 3001
-        published: 3001
-        protocol: tcp
-        mode: host
+      FRONTEND_URL: http://localhost
+      ALLOWED_ORIGINS: http://localhost
     networks:
       - schema_flo_network
     depends_on:
@@ -76,7 +71,7 @@ services:
     container_name: schema-flo-frontend
     working_dir: /app
     environment:
-      VITE_API_URL: http://localhost:3001
+      VITE_API_URL: http://localhost
     volumes:
       - source: ./application/frontend
         target: /app
@@ -84,11 +79,6 @@ services:
       - source: frontend_node_modules
         target: /app/node_modules
         type: volume
-    ports:
-      - target: 5173
-        published: 5173
-        protocol: tcp
-        mode: host
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     networks:
       - schema_flo_network
@@ -131,7 +121,7 @@ services:
       - "traefik.http.routers.schema_flo_dashboard.entrypoints=web"
       - "traefik.http.routers.schema_flo_dashboard.service=api@internal"
     healthcheck: #если нездоров, то до кадди не доходит. проверка каждые 30 сек
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      test: ["CMD", "traefik", "healthcheck", "--ping", "--ping.entrypoint=web", "--entrypoints.web.address=:80"]
       interval: 30s
       timeout: 5s
       retries: 5

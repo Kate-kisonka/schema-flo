@@ -23,6 +23,7 @@ export default function HomeScreen({ cycle, diary, onSchemaPopup }) {
     periodActive, showPeriodConfirm, setShowPeriodConfirm,
     showFlowQuestion, setShowFlowQuestion,
     startPeriod, endPeriod,
+    cycleLoadError,
   } = cycle;
 
   const {
@@ -31,24 +32,28 @@ export default function HomeScreen({ cycle, diary, onSchemaPopup }) {
     discharge, setDischarge,
     digestion, setDigestion,
     symptoms, libido, setLibido,
-    symptomNotes, setSymptomNotes,
     activeSchemas, notes, setNotes,
-    completedExercises,
     showExtendedMoods, setShowExtendedMoods,
     toggleMood, toggleSchema, toggleSymptom,
-    saveDay, editToday, markExerciseDone,
+    saveDay, editToday,
   } = diary;
 
   const [phaseExpanded, setPhaseExpanded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   const phase = getPhase(cycleDay);
   const todayLog = logs.find(l => l.date === getTodayKey());
 
-  const handleSaveDay = () => {
-    saveDay(cycleDay, phase.name);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSaveDay = async () => {
+    setSaveError(false);
+    const ok = await saveDay(cycleDay, phase.key);
+    if (ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } else {
+      setSaveError(true);
+    }
   };
 
   return (
@@ -64,16 +69,29 @@ export default function HomeScreen({ cycle, diary, onSchemaPopup }) {
               {new Date().toLocaleDateString("ru-RU", { weekday: "long" })}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: phase.color + "18", border: `1px solid ${phase.color}40`, borderRadius: 6, padding: "5px 10px" }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: phase.color }} />
-            <div style={{ fontSize: 12, color: phase.color, fontWeight: "500" }}>{phase.name} · д.{cycleDay}</div>
-          </div>
+          {cycleLoadError ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: T.muted + "18", border: `1px solid ${T.muted}40`, borderRadius: 6, padding: "5px 10px" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: T.muted }} />
+              <div style={{ fontSize: 12, color: T.muted, fontWeight: "500" }}>Данные не загрузились</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: phase.color + "18", border: `1px solid ${phase.color}40`, borderRadius: 6, padding: "5px 10px" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: phase.color }} />
+              <div style={{ fontSize: 12, color: phase.color, fontWeight: "500" }}>{phase.name} · д.{cycleDay}</div>
+            </div>
+          )}
         </div>
 
         {/* Фаза */}
-        <div style={{ background: phase.color + "10", border: `1px solid ${phase.color}30`, borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
-          <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.55 }}>{phase.mentalComment}</div>
-        </div>
+        {cycleLoadError ? (
+          <div style={{ background: T.muted + "10", border: `1px solid ${T.muted}30`, borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.55 }}>Не удалось загрузить данные о цикле — проверь соединение и обнови страницу. День цикла ниже показан приблизительно.</div>
+          </div>
+        ) : (
+          <div style={{ background: phase.color + "10", border: `1px solid ${phase.color}30`, borderRadius: 8, padding: "10px 12px", marginBottom: 12 }}>
+            <div style={{ fontSize: 13, color: T.sub, lineHeight: 1.55 }}>{phase.mentalComment}</div>
+          </div>
+        )}
 
         {/* Полоска цикла */}
         <div style={{ display: "flex", gap: 2 }}>
@@ -174,7 +192,15 @@ export default function HomeScreen({ cycle, diary, onSchemaPopup }) {
                 <p style={{ ...S.st, marginTop: 8 }}>Интенсивность · {intensity}/10</p>
                 <input type="range" min={1} max={10} value={intensity} onChange={e => setIntensity(Number(e.target.value))} style={{ width: "100%", accentColor: T.accent, marginBottom: 4 }} />
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: T.muted }}><span>Лёгко</span><span>Невыносимо</span></div>
-                <button style={{ ...S.primaryBtn(), marginTop: 14 }} onClick={() => setDiaryStep(1)}>Далее →</button>
+                <button style={{ ...S.primaryBtn(saved ? T.green : T.accent), marginTop: 14 }} onClick={handleSaveDay}>
+                  {saved ? "✓ День отмечен" : "✓ Отметить день"}
+                </button>
+                <button style={{ ...S.ghostBtn, marginTop: 8 }} onClick={() => setDiaryStep(1)}>+ добавить тело · схемы · заметки</button>
+                {saveError && (
+                  <p style={{ color: T.red, fontSize: 12, margin: "10px 0 0", textAlign: "center" }}>
+                    Не удалось сохранить — проверь соединение и попробуй ещё раз
+                  </p>
+                )}
               </div>
             )}
 
@@ -270,6 +296,11 @@ export default function HomeScreen({ cycle, diary, onSchemaPopup }) {
                     {saved ? "✓ Сохранено" : "Сохранить день"}
                   </button>
                 </div>
+                {saveError && (
+                  <p style={{ color: T.red, fontSize: 12, margin: "10px 0 0", textAlign: "center" }}>
+                    Не удалось сохранить — проверь соединение и попробуй ещё раз
+                  </p>
+                )}
               </div>
             )}
           </>

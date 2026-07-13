@@ -1,7 +1,7 @@
 import React from "react";
 import { T } from "../constants/theme.js";
 import { SCHEMAS, MOODS, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS, EXERCISES } from "../data.js";
-import { getPhase, formatDate, getDayOfWeek } from "../utils.js";
+import { getPhase, formatDate, getDayOfWeek, phaseLabel } from "../utils.js";
 
 const S = {
   card: { background: T.card, borderRadius: 12, padding: "16px", marginBottom: 8, border: `1px solid ${T.border}` },
@@ -19,7 +19,7 @@ export default function LogDetailScreen({ log, onBack }) {
 
       <div style={{ ...S.card, background: lp.color + "15", borderColor: lp.color + "44" }}>
         <div style={{ fontSize: 16, marginBottom: 3 }}>{getDayOfWeek(log.date)}, {formatDate(log.date)}</div>
-        <div style={{ fontSize: 12, color: lp.color }}>День цикла {log.cycleDay} · {log.phase}</div>
+        <div style={{ fontSize: 12, color: lp.color }}>День цикла {log.cycleDay} · {phaseLabel(log.phase)}</div>
       </div>
 
       <div style={{ ...S.card, borderLeft: `3px solid ${lp.color}` }}>

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { SCHEMAS, MOODS, CYCLE_PHASES } from "../data.js";
-import { getPhase, getTodayKey } from "../utils.js";
+import { normalizePhaseKey, phaseLabel } from "../utils.js";
 
 export function useHistory(logs) {
   const last14 = useMemo(() => logs.slice(0, 14).reverse(), [logs]);
@@ -13,7 +13,7 @@ export function useHistory(logs) {
     // Самая интенсивная фаза
     const byPhase = {};
     logs.forEach(l => {
-      const p = l.phase || "Лютеиновая";
+      const p = normalizePhaseKey(l.phase) || "luteal";
       if (!byPhase[p]) byPhase[p] = [];
       byPhase[p].push(l.intensity || 5);
     });
@@ -21,7 +21,7 @@ export function useHistory(logs) {
       .map(([p, vals]) => ({ phase: p, avg: vals.reduce((a, b) => a + b, 0) / vals.length }))
       .sort((a, b) => b.avg - a.avg);
     if (phaseAvgs.length > 1)
-      result.push({ emoji: "🌙", text: `В ${phaseAvgs[0].phase} фазу интенсивность выше всего (${phaseAvgs[0].avg.toFixed(1)}/10)` });
+      result.push({ emoji: "🌙", text: `Фаза «${phaseLabel(phaseAvgs[0].phase)}» — интенсивность выше всего (${phaseAvgs[0].avg.toFixed(1)}/10)` });
 
     // Самое частое настроение
     const moodCount = {};
@@ -42,7 +42,7 @@ export function useHistory(logs) {
     }
 
     // Корреляция схемы с лютеиновой фазой
-    const lutLogs = logs.filter(l => l.phase === "Лютеиновая" && l.schemas?.length > 0);
+    const lutLogs = logs.filter(l => normalizePhaseKey(l.phase) === "luteal" && l.schemas?.length > 0);
     if (lutLogs.length >= 2) {
       const lutSchemas = {};
       lutLogs.flatMap(l => l.schemas).forEach(id => { lutSchemas[id] = (lutSchemas[id] || 0) + 1; });

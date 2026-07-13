@@ -1,3 +1,5 @@
+import { normalizePhaseKey } from "../utils.js";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 function getToken() {
@@ -30,7 +32,7 @@ function toDiaryClient(item) {
     intensity: item.intensity,
     notes: item.notes || "",
     cycleDay: item.cycle_day,
-    phase: item.phase_key,
+    phase: normalizePhaseKey(item.phase_key),
     symptoms: item.symptoms || [],
     discharge: item.discharge ?? null,
     digestion: item.digestion ?? null,
@@ -76,10 +78,24 @@ export const dbDiary = {
   },
 };
 
+// /api/state сохраняется через «прочитай целиком → перезапиши целиком».
+// Цикл и тишина делают это одновременно при старте — без очереди
+// параллельные запросы затирают поля друг друга.
+let stateSaveQueue = Promise.resolve();
+
+function queueStateSave(task) {
+  const run = () => task();
+  stateSaveQueue = stateSaveQueue.then(run, run);
+  return stateSaveQueue;
+}
+
 export const dbCycle = {
+  // /api/state, упавший по сети/ошибке, здесь НЕ проглатывается (в отличие
+  // от /api/cycle) — вызывающий код должен отличить «реальных данных нет»
+  // от «не удалось загрузить» и не показывать выдуманный день цикла как настоящий
   async get() {
     const [state, history] = await Promise.all([
-      api("/api/state").catch(() => null),
+      api("/api/state"),
       api("/api/cycle").catch(() => ({ items: [] })),
     ]);
     return {
@@ -95,17 +111,19 @@ export const dbCycle = {
   },
 
   async save(cycleState) {
-    const existing = await api("/api/state").catch(() => null);
-    return api("/api/state", {
-      method: "PUT",
-      body: JSON.stringify({
-        cycleDay: cycleState.cycleDay ?? null,
-        periodStartDate: cycleState.periodStartDate ?? null,
-        periodActive: !!cycleState.periodActive,
-        silenceActive: existing?.silence_active ?? false,
-        silenceStartDate: existing?.silence_start_date ?? null,
-        silenceDays: existing?.silence_days ?? 14,
-      }),
+    return queueStateSave(async () => {
+      const existing = await api("/api/state").catch(() => null);
+      return api("/api/state", {
+        method: "PUT",
+        body: JSON.stringify({
+          cycleDay: cycleState.cycleDay ?? null,
+          periodStartDate: cycleState.periodStartDate ?? null,
+          periodActive: !!cycleState.periodActive,
+          silenceActive: existing?.silence_active ?? false,
+          silenceStartDate: existing?.silence_start_date ?? null,
+          silenceDays: existing?.silence_days ?? 14,
+        }),
+      });
     });
   },
 };
@@ -134,17 +152,19 @@ export const dbSilence = {
   },
 
   async save(silenceState) {
-    const existing = await api("/api/state").catch(() => null);
-    return api("/api/state", {
-      method: "PUT",
-      body: JSON.stringify({
-        cycleDay: existing?.cycle_day ?? null,
-        periodStartDate: existing?.period_start_date ?? null,
-        periodActive: existing?.period_active ?? false,
-        silenceActive: !!silenceState.silenceActive,
-        silenceStartDate: silenceState.silenceStartDate ?? null,
-        silenceDays: silenceState.silenceDays ?? 14,
-      }),
+    return queueStateSave(async () => {
+      const existing = await api("/api/state").catch(() => null);
+      return api("/api/state", {
+        method: "PUT",
+        body: JSON.stringify({
+          cycleDay: existing?.cycle_day ?? null,
+          periodStartDate: existing?.period_start_date ?? null,
+          periodActive: existing?.period_active ?? false,
+          silenceActive: !!silenceState.silenceActive,
+          silenceStartDate: silenceState.silenceStartDate ?? null,
+          silenceDays: silenceState.silenceDays ?? 14,
+        }),
+      });
     });
   },
 };
@@ -184,6 +204,30 @@ export const dbSilenceLogs = {
         },
       }),
     });
+  },
+};
+
+// AI-сессии живут в localStorage: на бэкенде нет ни хранилища,
+// ни /api/chat — экран поддержки пока не подключён
+const AI_SESSIONS_KEY = "ai_sessions";
+
+export const dbAISessions = {
+  async getAll() {
+    try {
+      return JSON.parse(localStorage.getItem(AI_SESSIONS_KEY)) || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async upsert(session) {
+    const all = await this.getAll();
+    const next = [session, ...all.filter((s) => s.id !== session.id)];
+    try {
+      localStorage.setItem(AI_SESSIONS_KEY, JSON.stringify(next));
+    } catch {
+      // localStorage переполнен — сессия останется только в памяти
+    }
   },
 };
 

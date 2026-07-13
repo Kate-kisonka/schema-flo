@@ -1,7 +1,7 @@
 import React from "react";
 import { T } from "../constants/theme.js";
 import { EXERCISES, NEEDS, NEED_LEVELS } from "../data.js";
-import { formatDate, getTodayKey } from "../utils.js";
+import { formatDate } from "../utils.js";
 import Breathing478 from "../components/Breathing478.jsx";
 
 const S = {
@@ -15,11 +15,30 @@ const S = {
 };
 
 const TABS = [
-  { id: "crisis",  label: "🆘 Кризис", color: T.orange },
-  { id: "schema",  label: "🧸 Схема",  color: T.accent },
-  { id: "cbt",     label: "🧠 КПТ",    color: T.blue   },
-  { id: "silence", label: "🤫 Тишина", color: T.greenDark },
+  { id: "crisis",  label: "Кризис", icon: "crisis",  color: T.orange },
+  { id: "schema",  label: "Схема",  icon: "schema",  color: T.accent },
+  { id: "cbt",     label: "КПТ",    icon: "cbt",     color: T.blue   },
+  { id: "silence", label: "Тишина", icon: "silence", color: T.greenDark },
 ];
+
+function TabIcon({ name, color, size = 14 }) {
+  const p = { width: size, height: size, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round" };
+  if (name === "crisis")  return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 8v4.5M12 16h.01" /></svg>);
+  if (name === "schema")  return (<svg {...p}><path d="M12 20s-6-4-6-9a3.6 3.6 0 0 1 6-2.6A3.6 3.6 0 0 1 18 11c0 5-6 9-6 9Z" /></svg>);
+  if (name === "cbt")     return (<svg {...p}><path d="M9.5 18h5M10.5 21h3" /><path d="M12 3a6 6 0 0 0-3.7 10.7c.6.5.9 1.1.9 2.3h5.6c0-1.2.3-1.8.9-2.3A6 6 0 0 0 12 3Z" /></svg>);
+  if (name === "silence") return (<svg {...p}><path d="M5 9.5v5h3l4 3.5v-12L8 9.5H5Z" /><path d="M16 10l4 4M20 10l-4 4" /></svg>);
+  return null;
+}
+
+function TabButton({ tab, active, onClick }) {
+  return (
+    <button style={S.tabBar(active)} onClick={onClick}>
+      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+        <TabIcon name={tab.icon} color={active ? T.bg : T.muted} /> {tab.label}
+      </span>
+    </button>
+  );
+}
 
 export default function PracticesScreen({ silence, diary }) {
   const [exerciseTab,   setExerciseTab]   = React.useState("crisis");
@@ -29,7 +48,7 @@ export default function PracticesScreen({ silence, diary }) {
 
   const {
     silenceActive, silenceDays, adjustDays,
-    silenceStartDate, silenceLogs,
+    silenceStartDate,
     needsChecked, toggleNeed,
     morningNote, setMorningNote,
     goodDone, setGoodDone,
@@ -88,7 +107,7 @@ export default function PracticesScreen({ silence, diary }) {
       <div style={S.content}>
         <div style={{ padding: "16px 0 0" }}>
           <div style={{ display: "flex", gap: 3, marginBottom: 14, background: T.card, padding: 3, borderRadius: 9, border: `1px solid ${T.border}` }}>
-            {TABS.map(t => <button key={t.id} style={S.tabBar(exerciseTab === t.id)} onClick={() => setExerciseTab(t.id)}>{t.label}</button>)}
+            {TABS.map(t => <TabButton key={t.id} tab={t} active={exerciseTab === t.id} onClick={() => setExerciseTab(t.id)} />)}
           </div>
 
           {!silenceActive ? (
@@ -177,7 +196,7 @@ export default function PracticesScreen({ silence, diary }) {
     <div style={S.content}>
       <div style={{ padding: "16px 0 0" }}>
         <div style={{ display: "flex", gap: 3, marginBottom: 14, background: T.card, padding: 3, borderRadius: 9, border: `1px solid ${T.border}` }}>
-          {TABS.map(t => <button key={t.id} style={S.tabBar(exerciseTab === t.id)} onClick={() => setExerciseTab(t.id)}>{t.label}</button>)}
+          {TABS.map(t => <TabButton key={t.id} tab={t} active={exerciseTab === t.id} onClick={() => setExerciseTab(t.id)} />)}
         </div>
 
         {exerciseTab === "crisis" && (

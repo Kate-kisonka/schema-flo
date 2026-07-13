@@ -3,11 +3,16 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
 import { pool, query } from "./db.js"; //подключение к бд и обработка скюль запросов
 
 dotenv.config();
 
 const app = express();
+// За backend в цепочке 2 прокси (Traefik → Caddy), поэтому req.ip должен браться
+// из 2-го X-Forwarded-For справа. trust proxy: true доверяет ЛЮБОМУ значению из
+// заголовка (клиент может подделать), а число хопов — доверяет ровно нашей топологии.
+app.set("trust proxy", 2);
 const PORT = process.env.PORT || 3001; //
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error("JWT_SECRET is required");
@@ -42,6 +47,20 @@ function parseJsonArray(value) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
   return [];
+}
+
+const DIARY_TEXT_FIELDS = ["notes", "phaseKey", "discharge", "digestion", "libido", "symptomNotes"];
+
+// Postgres роняет запрос с ошибкой типа колонки (500), если сюда придёт объект/массив вместо строки —
+// проверяем тип заранее и возвращаем понятный 400.
+function validateDiaryTextFields(body) {
+  for (const field of DIARY_TEXT_FIELDS) {
+    const value = body[field];
+    if (value !== undefined && value !== null && typeof value !== "string") {
+      return `${field} должен быть строкой`;
+    }
+  }
+  return null;
 }
 
 function buildDiaryParams(body) {
@@ -86,6 +105,11 @@ function isIsoDate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUuid(value) {
+  return typeof value === "string" && UUID_RE.test(value);
+}
+
 function toSafeInt(value, min, max) {
   if (value === null || value === undefined) return null;
   const n = Number(value);
@@ -98,6 +122,33 @@ function toSafeInt(value, min, max) {
 function signToken(user) {
   return jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
 }
+
+// Фронтенд (useAuth.js) читает токен из hash "#auth=token=...&user=...", а не из query —
+// так токен не попадает в логи сервера/истории браузера через query string.
+function buildFrontendAuthRedirect(user, token) {
+  const authParams = new URLSearchParams({
+    token,
+    user: JSON.stringify({ id: user.id, email: user.email }),
+  });
+  return `${FRONTEND_URL}/#auth=${encodeURIComponent(authParams.toString())}`;
+}
+
+// Защита от подбора пароля брутфорсом — считаем попытки по IP, не по email/user_id
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Слишком много попыток входа. Попробуйте позже." },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Слишком много попыток регистрации. Попробуйте позже." },
+});
 
 function auth(req, res, next) {
   const header = req.headers.authorization || "";
@@ -125,10 +176,12 @@ app.get("/health", async (_req, res) => {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-app.post("/api/auth/register", async (req, res) => {
+app.post("/api/auth/register", registerLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email и пароль обязательны" });
-  if (password.length < 8) return res.status(400).json({ error: "Пароль должен быть минимум 8 символов" });
+  if (typeof password !== "string" || password.length < 8) {
+    return res.status(400).json({ error: "Пароль должен быть минимум 8 символов" });
+  }
   const normalizedEmail = normalizeEmail(email);
 
   try {
@@ -242,7 +295,7 @@ app.get("/api/auth/google/callback", async (req, res) => {
   }
 });
 //Логин иошибки с ним
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: "Email и пароль обязательны" });
   const normalizedEmail = normalizeEmail(email);
@@ -285,6 +338,12 @@ app.get("/api/auth/me", auth, async (req, res) => {
 // ─── Diary ────────────────────────────────────────────────────────────────────
 
 app.get("/api/diary", auth, async (req, res) => {
+  if (req.query.limit !== undefined && !Number.isFinite(Number(req.query.limit))) {
+    return res.status(400).json({ error: "limit должен быть числом" });
+  }
+  if (req.query.offset !== undefined && !Number.isFinite(Number(req.query.offset))) {
+    return res.status(400).json({ error: "offset должен быть числом" });
+  }
   const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 500);
   const offset = Math.max(Number(req.query.offset || 0), 0);
   // Фильтр по конкретной дате — нужен для эффективного upsert без N+1
@@ -318,6 +377,8 @@ app.post("/api/diary", auth, async (req, res) => {
   if (req.body.activeSchemaIds !== undefined && !Array.isArray(req.body.activeSchemaIds)) {
     return res.status(400).json({ error: "activeSchemaIds должен быть массивом" });
   }
+  const textFieldErrors = validateDiaryTextFields(req.body);
+  if (textFieldErrors) return res.status(400).json({ error: textFieldErrors });
 
   const fields = buildDiaryParams({
     moodIds: req.body.moodIds ?? [],
@@ -386,8 +447,12 @@ app.post("/api/diary", auth, async (req, res) => {
 
 app.patch("/api/diary/:id", auth, async (req, res) => {
   const { id } = req.params;
+  if (!isUuid(id)) return res.status(400).json({ error: "Некорректный id записи" });
   const { entryDate } = req.body;
   if (entryDate && !isIsoDate(entryDate)) return res.status(400).json({ error: "entryDate должен быть в формате YYYY-MM-DD" });
+
+  const textFieldErrors = validateDiaryTextFields(req.body);
+  if (textFieldErrors) return res.status(400).json({ error: textFieldErrors });
 
   const fields = buildDiaryParams(req.body);
   if (req.body.intensity !== undefined && req.body.intensity !== null && fields.intensity === null) {
@@ -438,6 +503,7 @@ app.patch("/api/diary/:id", auth, async (req, res) => {
 });
 
 app.delete("/api/diary/:id", auth, async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ error: "Некорректный id записи" });
   try {
     const result = await query(
       "DELETE FROM diary_entries WHERE id = $1 AND user_id = $2",
@@ -471,6 +537,14 @@ app.post("/api/cycle", auth, async (req, res) => {
   const { periodStartDate, cycleLength = null, notes = "" } = req.body;
   if (!periodStartDate) return res.status(400).json({ error: "periodStartDate обязателен" });
   if (!isIsoDate(periodStartDate)) return res.status(400).json({ error: "periodStartDate должен быть в формате YYYY-MM-DD" });
+
+  const safeCycleLength = cycleLength !== null && cycleLength !== undefined
+    ? toSafeInt(cycleLength, 1, 99)
+    : null;
+  if (cycleLength !== null && cycleLength !== undefined && safeCycleLength === null) {
+    return res.status(400).json({ error: "cycleLength: целое число от 1 до 99" });
+  }
+
   try {
     const result = await query(
       `INSERT INTO cycle_entries (user_id, period_start_date, cycle_length, notes)
@@ -479,7 +553,7 @@ app.post("/api/cycle", auth, async (req, res) => {
          cycle_length = EXCLUDED.cycle_length,
          notes = EXCLUDED.notes
        RETURNING *`,
-      [req.user.id, periodStartDate, cycleLength, notes]
+      [req.user.id, periodStartDate, safeCycleLength, notes]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -563,6 +637,16 @@ app.put("/api/state", auth, async (req, res) => {
     silenceStartDate = null,
     silenceDays = 14,
   } = req.body;
+
+  const safeCycleDay = cycleDay !== null && cycleDay !== undefined ? toSafeInt(cycleDay, 1, 99) : null;
+  if (cycleDay !== null && cycleDay !== undefined && safeCycleDay === null) {
+    return res.status(400).json({ error: "cycleDay: целое число от 1 до 99" });
+  }
+  const safeSilenceDays = silenceDays !== null && silenceDays !== undefined ? toSafeInt(silenceDays, 1, 365) : null;
+  if (silenceDays !== null && silenceDays !== undefined && safeSilenceDays === null) {
+    return res.status(400).json({ error: "silenceDays: целое число от 1 до 365" });
+  }
+
   try {
     const result = await query(
       `INSERT INTO user_states
@@ -576,7 +660,7 @@ app.put("/api/state", auth, async (req, res) => {
          silence_start_date = EXCLUDED.silence_start_date,
          silence_days       = EXCLUDED.silence_days
        RETURNING cycle_day, period_start_date, period_active, silence_active, silence_start_date, silence_days`,
-      [req.user.id, cycleDay, periodStartDate, periodActive, silenceActive, silenceStartDate, silenceDays]
+      [req.user.id, safeCycleDay, periodStartDate, periodActive, silenceActive, silenceStartDate, safeSilenceDays]
     );
     res.json(result.rows[0]);
   } catch (err) {

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { T } from "../constants/theme.js";
 import { SCHEMAS, MOODS, CYCLE_PHASES, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS } from "../data.js";
-import { getPhase, getTodayKey, formatDate, getDayOfWeek, buildCalendarDays, shiftMonth, parseLocalDate } from "../utils.js";
+import { getPhase, getTodayKey, formatDate, getDayOfWeek, buildCalendarDays, shiftMonth, parseLocalDate, avgCycleLength, phaseLabel } from "../utils.js";
 import { importBackup } from "../services/db.js";
 
 const S = {
@@ -65,9 +65,15 @@ export default function HistoryScreen({ logs, periodHistory, history, onSelectLo
     lineHeight: 1,
   };
 
-  const avgCycleLength = () => {
-    const lens = periodHistory.filter(p => p.cycleLength && p.cycleLength > 15 && p.cycleLength < 50).map(p => p.cycleLength);
-    return lens.length ? Math.round(lens.reduce((a, b) => a + b, 0) / lens.length) : null;
+  const avgCycle = avgCycleLength(periodHistory);
+
+  // Экранирование по RFC 4180 + защита от формул-инъекций в Excel:
+  // ячейка, начинающаяся с = + - @, исполнилась бы как формула
+  const csvCell = (value) => {
+    let s = String(value ?? "").replace(/\r?\n/g, " ");
+    if (/^[=+\-@]/.test(s)) s = "'" + s;
+    if (/[",]/.test(s)) s = `"${s.replace(/"/g, '""')}"`;
+    return s;
   };
 
   const exportCsv = () => {
@@ -78,8 +84,7 @@ export default function HistoryScreen({ logs, periodHistory, history, onSelectLo
       const symptoms = l.symptoms?.map(id => PHYSICAL_SYMPTOMS.find(s => s.id === id)?.label).filter(Boolean).join("|") || "";
       const discharge = DISCHARGE_TYPES.find(d => d.id === l.discharge)?.label || "";
       const libido    = LIBIDO.find(x => x.id === l.libido)?.label || "";
-      const notes     = (l.notes || "").replace(/,/g, ";").replace(/\n/g, " ");
-      rows.push([l.date, l.cycleDay, l.phase, moods, l.intensity || "", schemas, discharge, libido, symptoms, notes].join(","));
+      rows.push([l.date, l.cycleDay, phaseLabel(l.phase), moods, l.intensity || "", schemas, discharge, libido, symptoms, l.notes || ""].map(csvCell).join(","));
     });
     const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
@@ -183,7 +188,7 @@ export default function HistoryScreen({ logs, periodHistory, history, onSelectLo
                 <p style={{ ...S.st, color: T.orange }}>Статистика цикла</p>
                 <div style={{ display: "flex", gap: 8 }}>
                   {[
-                    { label: "средний цикл", val: avgCycleLength() ? avgCycleLength() + "д" : "—" },
+                    { label: "средний цикл", val: avgCycle ? avgCycle + "д" : "—" },
                     { label: "циклов записано", val: periodHistory.length },
                     ...(periodHistory.filter(p => p.cycleLength).length >= 2 ? [{
                       label: "разброс",

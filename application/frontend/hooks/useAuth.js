@@ -27,7 +27,12 @@ function consumeOAuthRedirect() {
   const userRaw = authParams.get("user");
   if (!token || !userRaw) return null;
 
-  const user = JSON.parse(userRaw);
+  let user;
+  try {
+    user = JSON.parse(userRaw);
+  } catch {
+    return null;
+  }
   window.history.replaceState(null, "", window.location.pathname + window.location.search);
   return { token, user };
 }

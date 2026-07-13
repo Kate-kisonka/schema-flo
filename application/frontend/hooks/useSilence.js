@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getTodayKey, parseLocalDate } from "../utils.js";
 import { dbSilence, dbSilenceLogs } from "../services/db.js";
 
@@ -8,6 +8,7 @@ export function useSilence() {
   const [silenceDays,      setSilenceDaysRaw]      = useState(14);
   const [silenceLogs,      setSilenceLogsRaw]      = useState([]);
   const [loaded,           setLoaded]              = useState(false);
+  const skipNextSave = useRef(false);
 
   const [needsChecked,  setNeedsChecked]  = useState([]);
   const [morningNote,   setMorningNote]   = useState("");
@@ -30,12 +31,17 @@ export function useSilence() {
         setGoodDone(todayLog.goodDone || "");
         setGoodTomorrow(todayLog.goodTomorrow || "");
       }
+      skipNextSave.current = true;
       setLoaded(true);
     });
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
+    if (skipNextSave.current) {
+      skipNextSave.current = false;
+      return;
+    }
     dbSilence.save({ silenceActive, silenceStartDate, silenceDays });
   }, [silenceActive, silenceStartDate, silenceDays, loaded]);
 
