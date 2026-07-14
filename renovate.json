@@ -1,0 +1,5 @@
+{
+  "extends": [
+    "local>solutions/renovate-config"
+  ]
+}
