@@ -1,90 +1,4 @@
 services:
-  postgres:
-    image: postgres:16.14-alpine3.24
-    container_name: schema-flo-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: schema_flo
-      POSTGRES_USER: schema_flo
-      POSTGRES_PASSWORD: schema_flo
-    volumes:
-      - source: postgres_data
-        target: /var/lib/postgresql/data
-        type: volume
-    networks:
-      - schema_flo_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U schema_flo -d schema_flo"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  pgadmin:
-    image: dpage/pgadmin4:8
-    container_name: schema-flo-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: schema_flo
-    ports:
-      - target: 80 
-        published: 5050
-        protocol: tcp
-        mode: host
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - source: pgadmin_data
-        target: /var/lib/pgadmin
-        type: volume
-    networks:
-      - schema_flo_network
-
-  backend:
-    build:
-      context: application/backend
-      dockerfile: ../../deploy/local/Dockerfile
-    container_name: schema-flo-backend
-    restart: unless-stopped
-    command: sh -c "npm run migrate && npm start"
-    environment:
-      NODE_ENV: development
-      PORT: 3001
-      DATABASE_URL: postgresql://schema_flo:schema_flo@postgres:5432/schema_flo
-      JWT_SECRET: local-dev-secret-change-me-min-32-chars
-      FRONTEND_URL: http://localhost
-      ALLOWED_ORIGINS: http://localhost
-    networks:
-      - schema_flo_network
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  frontend:
-    image: node:20.20.2-alpine3.23
-    container_name: schema-flo-frontend
-    working_dir: /app
-    environment:
-      VITE_API_URL: http://localhost
-    volumes:
-      - source: ./application/frontend
-        target: /app
-        type: bind
-      - source: frontend_node_modules
-        target: /app/node_modules
-        type: volume
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    networks:
-      - schema_flo_network
-    depends_on:
-      - backend
-
   traefik:
     image: traefik:v3.7.1
     container_name: schema-flo-traefik
@@ -163,8 +77,93 @@ services:
         condition: service_started
       frontend:
         condition: service_started
+         
+  postgres:
+    image: postgres:16.14-alpine3.24
+    container_name: schema-flo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: schema_flo
+      POSTGRES_USER: schema_flo
+      POSTGRES_PASSWORD: schema_flo
+    volumes:
+      - source: postgres_data
+        target: /var/lib/postgresql/data
+        type: volume
+    networks:
+      - schema_flo_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schema_flo -d schema_flo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-#это нужно?
+  pgadmin:
+    image: dpage/pgadmin4:snapshot # актуальная на текущий день на докерхаб, но и до этого была актуальная. ее вручную надо менять каждый раз?
+    container_name: schema-flo-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: schema_flo
+    ports:
+      - target: 80 #внутри контейнера
+        published: 5050 #снаружи хоста
+        protocol: tcp
+        mode: host #актуально для сварм (кластерный режим(?))
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - source: pgadmin_data
+        target: /var/lib/pgadmin
+        type: volume
+    networks:
+      - schema_flo_network
+
+  backend:
+    build:
+      context: application/backend
+      dockerfile: ../../deploy/local/Dockerfile
+    restart: unless-stopped
+    command: sh -c "npm run migrate && npm start"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://schema_flo:schema_flo@postgres:5432/schema_flo
+      JWT_SECRET: local-dev-secret-change-me-min-32-chars
+      FRONTEND_URL: http://localhost
+      ALLOWED_ORIGINS: http://localhost
+    networks:
+      - schema_flo_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    image: node:20.20.2-alpine3.23
+    working_dir: /app
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost
+    volumes:
+      - source: ./application/frontend
+        target: /app
+        type: bind
+      - source: frontend_node_modules
+        target: /app/node_modules
+        type: volume
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - schema_flo_network
+    depends_on:
+      - backend
+
+
 volumes:
   postgres_data:
   pgadmin_data:
