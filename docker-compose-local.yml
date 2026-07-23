@@ -1,7 +1,6 @@
 services:
   traefik:
     image: traefik:v3.7.1
-    container_name: schema-flo-traefik
     restart: unless-stopped
     command:
       - "--log.level=DEBUG" #логи. смотрим как находят контейнеры, строит пути
@@ -48,7 +47,6 @@ services:
 
   caddy:
     image: caddy:2.11.3-alpine
-    container_name: schema-flo-caddy
     restart: unless-stopped
     command: caddy run --config /etc/caddy/Caddyfile #иди за инструкцией по этому пути
     volumes:
@@ -80,7 +78,6 @@ services:
          
   postgres:
     image: postgres:16.14-alpine3.24
-    container_name: schema-flo-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: schema_flo
@@ -99,8 +96,7 @@ services:
       retries: 10
 
   pgadmin:
-    image: dpage/pgadmin4:snapshot # актуальная на текущий день на докерхаб, но и до этого была актуальная. ее вручную надо менять каждый раз?
-    container_name: schema-flo-pgadmin
+    image: dpage/pgadmin4:snapshot # актуальная на текущий день на докерхаб, но и до этого была актуальная. ее.. надо указывать?
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
@@ -145,11 +141,11 @@ services:
       retries: 3
 
   frontend:
-    image: node:20.20.2-alpine3.23
-    working_dir: /app
-    restart: unless-stopped
-    environment:
-      VITE_API_URL: http://localhost
+     build:
+       context: application/frontend
+     restart: unless-stopped
+     environment:
+       VITE_API_URL: http://localhost
     volumes:
       - source: ./application/frontend
         target: /app
