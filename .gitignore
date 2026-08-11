@@ -25,3 +25,6 @@ dist-ssr
 .env
 .env.local
 application/backend/.env
+
+.claude/settings.local.json
+deploy/prod/data/
