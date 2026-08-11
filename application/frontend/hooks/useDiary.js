@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { getTodayKey } from "../utils.js";
 import { dbDiary } from "../services/db.js";
 
-const DRAFT_KEY = "diary_draft";
+const draftKey = (userId) => `diary_draft:${userId}`;
 
 // Черновик незавершённого ввода живёт в localStorage, чтобы страница
 // пережила перезагрузку/закрытие вкладки. Привязан к сегодняшней дате —
 // черновик за прошедший день в новый день не подставляется.
-function loadDraft() {
+function loadDraft(userId) {
   try {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const raw = localStorage.getItem(draftKey(userId));
     if (!raw) return null;
     const draft = JSON.parse(raw);
     return draft && draft.date === getTodayKey() ? draft : null;
@@ -18,39 +18,41 @@ function loadDraft() {
   }
 }
 
-function saveDraft(draft) {
+function saveDraft(userId, draft) {
   try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    localStorage.setItem(draftKey(userId), JSON.stringify(draft));
   } catch {
     // localStorage недоступен/переполнен — черновик просто не переживёт перезагрузку
   }
 }
 
-function clearDraft() {
+function clearDraft(userId) {
   try {
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(draftKey(userId));
   } catch {
     // ignore
   }
 }
 
-export function useDiary() {
+export function useDiary(userId) {
+  const [initialDraft] = useState(() => loadDraft(userId));
   const [logs, setLogsRaw] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [diaryStep, setDiaryStep] = useState(() => {
-    const draft = loadDraft();
-    return typeof draft?.step === "number" ? draft.step : 0;
+    return typeof initialDraft?.step === "number" ? initialDraft.step : 0;
   });
 
-  const [selectedMoods, setSelectedMoods] = useState(() => loadDraft()?.moods || []);
-  const [intensity, setIntensity] = useState(() => loadDraft()?.intensity ?? 5);
-  const [discharge, setDischarge] = useState(() => loadDraft()?.discharge ?? null);
-  const [digestion, setDigestion] = useState(() => loadDraft()?.digestion ?? null);
-  const [symptoms, setSymptoms] = useState(() => loadDraft()?.symptoms || []);
-  const [libido, setLibido] = useState(() => loadDraft()?.libido ?? null);
-  const [symptomNotes, setSymptomNotes] = useState(() => loadDraft()?.symptomNotes || "");
-  const [activeSchemas, setActiveSchemas] = useState(() => loadDraft()?.schemas || []);
-  const [notes, setNotes] = useState(() => loadDraft()?.notes || "");
-  const [completedExercises, setCompletedExercises] = useState(() => loadDraft()?.exercises || []);
+  const [selectedMoods, setSelectedMoods] = useState(() => initialDraft?.moods || []);
+  const [intensity, setIntensity] = useState(() => initialDraft?.intensity ?? 5);
+  const [discharge, setDischarge] = useState(() => initialDraft?.discharge ?? null);
+  const [digestion, setDigestion] = useState(() => initialDraft?.digestion ?? null);
+  const [symptoms, setSymptoms] = useState(() => initialDraft?.symptoms || []);
+  const [libido, setLibido] = useState(() => initialDraft?.libido ?? null);
+  const [symptomNotes, setSymptomNotes] = useState(() => initialDraft?.symptomNotes || "");
+  const [activeSchemas, setActiveSchemas] = useState(() => initialDraft?.schemas || []);
+  const [notes, setNotes] = useState(() => initialDraft?.notes || "");
+  const [completedExercises, setCompletedExercises] = useState(() => initialDraft?.exercises || []);
   const [showExtendedMoods, setShowExtendedMoods] = useState(false);
 
   const applyTodayLog = useCallback((todayLog) => {
@@ -69,14 +71,23 @@ export function useDiary() {
   }, []);
 
   const reloadLogs = useCallback(async () => {
-    const allLogs = await dbDiary.getAll();
-    const sorted = allLogs.sort((a, b) => b.date.localeCompare(a.date));
-    setLogsRaw(sorted);
-    applyTodayLog(sorted.find((l) => l.date === getTodayKey()));
-    return sorted;
+    try {
+      const allLogs = await dbDiary.getAll();
+      const sorted = allLogs.sort((a, b) => b.date.localeCompare(a.date));
+      setLogsRaw(sorted);
+      applyTodayLog(sorted.find((l) => l.date === getTodayKey()));
+      setLoadError(false);
+      return sorted;
+    } catch (err) {
+      setLoadError(true);
+      throw err;
+    } finally {
+      setLoaded(true);
+    }
   }, [applyTodayLog]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial remote load owns these states
     reloadLogs().catch((err) => console.error("[diary] load failed:", err.message));
   }, [reloadLogs]);
 
@@ -84,10 +95,10 @@ export function useDiary() {
   // как только день сохранён (свой или подтянутый с сервера) — черновик не нужен
   useEffect(() => {
     if (diaryStep === 4) {
-      clearDraft();
+      clearDraft(userId);
       return;
     }
-    saveDraft({
+    saveDraft(userId, {
       date: getTodayKey(),
       step: diaryStep,
       moods: selectedMoods,
@@ -101,7 +112,7 @@ export function useDiary() {
       notes,
       exercises: completedExercises,
     });
-  }, [diaryStep, selectedMoods, intensity, discharge, digestion, symptoms, libido, symptomNotes, activeSchemas, notes, completedExercises]);
+  }, [userId, diaryStep, selectedMoods, intensity, discharge, digestion, symptoms, libido, symptomNotes, activeSchemas, notes, completedExercises]);
 
   const toggleMood = (id) => setSelectedMoods((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const toggleSchema = (id) => setActiveSchemas((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
@@ -124,9 +135,9 @@ export function useDiary() {
       symptomNotes,
       exercises: completedExercises,
     };
-    setLogsRaw((prev) => [entry, ...prev.filter((l) => l.date !== today)]);
     try {
       await dbDiary.upsert(entry);
+      setLogsRaw((prev) => [entry, ...prev.filter((l) => l.date !== today)]);
       setDiaryStep(4);
       return true;
     } catch (err) {
@@ -157,6 +168,8 @@ export function useDiary() {
 
   return {
     logs,
+    loaded,
+    loadError,
     setLogs: setLogsRaw,
     reloadLogs,
     diaryStep,

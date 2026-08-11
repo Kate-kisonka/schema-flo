@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { T } from "../constants/theme.js";
 import { getGoogleAuthUrl } from "../services/authApi.js";
+import Icon from "../components/icons.jsx";
 
 export default function RegisterScreen({ onRegister, onGoLogin, error, setError }) {
   const [email, setEmail]       = useState("");
@@ -35,7 +36,9 @@ export default function RegisterScreen({ onRegister, onGoLogin, error, setError 
       <div style={{ width: "100%", maxWidth: 380 }}>
 
         <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🌙</div>
+          <div style={{ marginBottom: 8, color: T.accent, display: "flex", justifyContent: "center" }}>
+            <Icon name="moon" size={36} strokeWidth={1.5} />
+          </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: T.text, margin: 0 }}>
             Schema Flo
           </h1>
@@ -115,7 +118,7 @@ const inputStyle = {
 
 const btnStyle = {
   width: "100%", padding: "13px", fontSize: 15, fontWeight: 600,
-  color: "#fff", border: "none", borderRadius: 10, fontFamily: T.font,
+  color: T.onAccent, border: "none", borderRadius: 10, fontFamily: T.font,
   transition: "background 0.2s",
 };
 

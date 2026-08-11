@@ -1,3 +1,252 @@
+/* ── Дизайн-система schema-flo: три темы (день / сумерки / ночь) ────────
+   Токены объявлены как CSS-переменные, theme.js ссылается на них через
+   var(--sf-*). ThemeToggle.jsx выставляет data-theme="day|dusk|night" на
+   <html>; :root без атрибута равнозначен data-theme="day" (по умолчанию). */
+
+:root {
+  /* нейтрали: перламутр (прохладный, не «бумага») */
+  --sf-bg:      #EFEFF1;
+  --sf-card:    #F7F7F9;
+  --sf-raised:  #FDFDFE;
+  --sf-border:  #E2E2E6;
+  --sf-border2: #CCCCD3;
+  --sf-text:    #1C1C1E;
+  --sf-sub:     #54545A;
+  --sf-muted:   #8A8A90;
+
+  /* акцент: приглушённая слива */
+  --sf-accent:      #7E6E8F;
+  --sf-accent-soft: #A99DB6;
+  --sf-accent-deep: #5B4E6C;
+  --sf-accent-wash: rgba(126,110,143,0.13);
+  --sf-on-accent:   #FFFFFF;
+
+  --sf-red:     #B0574F;
+  --sf-purple:  #8E7C93;
+  --sf-green:   #7FA08F;
+  --sf-green-dark: #5C7E6C;
+  --sf-orange:  #C9A15E;
+  --sf-yellow:  #D2A85F;
+  --sf-blue:    #6E8CA0;
+  --sf-pink:    #B0796F;
+  --sf-overlay: rgba(24,24,28,0.45);
+
+  --sf-mood-calm:      #7FA08F;
+  --sf-mood-neutral:   #C6B291;
+  --sf-mood-tender:    #9D93B0;
+  --sf-mood-heavy:     #6E7C92;
+  --sf-mood-activated: #C9A15E;
+
+  --sf-phase-menstrual:  #B07C79;
+  --sf-phase-follicular: #8FA97E;
+  --sf-phase-ovulation:  #D2A85F;
+  --sf-phase-luteal:     #8E7C93;
+
+  --sf-shadow-e0: 0 1px 2px rgba(28,28,40,.05);
+  --sf-shadow-e1: 0 1px 2px rgba(28,28,40,.05), 0 3px 10px rgba(28,28,40,.06);
+  --sf-shadow-e2: 0 6px 26px rgba(28,28,40,.10);
+
+  --sf-hero-a:  #5B4E6C;
+  --sf-hero-b:  #7E6E8F;
+  --sf-on-hero: #F5F2F7;
+
+  /* орб-компаньон «Свет» — холодная иридесценция */
+  --sf-orb-deep:   #0B1230;
+  --sf-orb-base:   #56659E;
+  --sf-orb-ice:    rgba(196,228,250,0.88);
+  --sf-orb-cyan:   rgba(150,236,238,0.78);
+  --sf-orb-lav:    rgba(210,200,248,0.80);
+  --sf-orb-silver: rgba(246,249,255,0.75);
+  --sf-orb-glow:   #9FC4E8;
+  --sf-orb-hi:     rgba(255,255,255,1);
+
+  /* жидкое стекло — приподнятые «геройские» поверхности */
+  --sf-glass-bg:     rgba(247,248,252,0.55);
+  --sf-glass-border: rgba(255,255,255,0.72);
+  --sf-glass-sheen:  rgba(255,255,255,0.60);
+  --sf-glass-tint:   rgba(150,196,232,0.12);
+}
+
+:root[data-theme="dusk"] {
+  --sf-bg:      #45404C;
+  --sf-card:    #504A59;
+  --sf-raised:  #5B5563;
+  --sf-border:  #6A6373;
+  --sf-border2: #827A8C;
+  --sf-text:    #F2EFF5;
+  --sf-sub:     #D0C8D9;
+  --sf-muted:   #A79EB2;
+
+  --sf-accent:      #9C8CAD;
+  --sf-accent-soft: #7C6D8C;
+  --sf-accent-deep: #C4B6D0;
+  --sf-accent-wash: rgba(156,140,173,0.18);
+  --sf-on-accent:   #211D28;
+
+  --sf-red:     #C27169;
+  --sf-purple:  #A18FA6;
+  --sf-green:   #8EB0A0;
+  --sf-green-dark: #6E927F;
+  --sf-orange:  #D2AC6C;
+  --sf-yellow:  #DBB772;
+  --sf-blue:    #809EB2;
+  --sf-pink:    #BE8B81;
+  --sf-overlay: rgba(12,10,16,0.52);
+
+  --sf-mood-calm:      #8EB0A0;
+  --sf-mood-neutral:   #D0BC9B;
+  --sf-mood-tender:    #ACA1BE;
+  --sf-mood-heavy:     #808EA4;
+  --sf-mood-activated: #D2AC6C;
+
+  --sf-phase-menstrual:  #BD8C89;
+  --sf-phase-follicular: #9CB48B;
+  --sf-phase-ovulation:  #DBB772;
+  --sf-phase-luteal:     #A18FA6;
+
+  --sf-shadow-e0: 0 1px 2px rgba(10,8,14,.22);
+  --sf-shadow-e1: 0 1px 2px rgba(10,8,14,.22), 0 3px 11px rgba(10,8,14,.26);
+  --sf-shadow-e2: 0 6px 27px rgba(10,8,14,.34);
+
+  --sf-hero-a: #4A4057;
+  --sf-hero-b: #6C5E7D;
+  --sf-on-hero: #F5F2F7;
+
+  --sf-orb-deep:   #080C22;
+  --sf-orb-base:   #46538A;
+  --sf-orb-ice:    rgba(180,214,240,0.76);
+  --sf-orb-cyan:   rgba(138,222,226,0.68);
+  --sf-orb-lav:    rgba(196,186,232,0.70);
+  --sf-orb-silver: rgba(232,238,248,0.62);
+  --sf-orb-glow:   #7FA6CE;
+  --sf-orb-hi:     rgba(255,255,255,0.96);
+
+  --sf-glass-bg:     rgba(84,78,93,0.48);
+  --sf-glass-border: rgba(176,210,238,0.24);
+  --sf-glass-sheen:  rgba(255,255,255,0.12);
+  --sf-glass-tint:   rgba(140,190,228,0.12);
+}
+
+:root[data-theme="night"] {
+  --sf-bg:      #17161A;
+  --sf-card:    #201E24;
+  --sf-raised:  #28262C;
+  --sf-border:  #35333A;
+  --sf-border2: #46434B;
+  --sf-text:    #EDEBEF;
+  --sf-sub:     #B8B4BE;
+  --sf-muted:   #8E8A94;
+
+  --sf-accent:      #B6A8C6;
+  --sf-accent-soft: #8D7E9D;
+  --sf-accent-deep: #D7CCE1;
+  --sf-accent-wash: rgba(182,168,198,0.16);
+  --sf-on-accent:   #201E24;
+
+  --sf-red:     #D48A82;
+  --sf-purple:  #B4A2B9;
+  --sf-green:   #9DC0B0;
+  --sf-green-dark: #7FA592;
+  --sf-orange:  #DBB679;
+  --sf-yellow:  #E4C685;
+  --sf-blue:    #92B0C4;
+  --sf-pink:    #CB9C92;
+  --sf-overlay: rgba(0,0,0,0.6);
+
+  --sf-mood-calm:      #9DC0B0;
+  --sf-mood-neutral:   #DAC7A6;
+  --sf-mood-tender:    #BCAFCC;
+  --sf-mood-heavy:     #92A0B6;
+  --sf-mood-activated: #DBB679;
+
+  --sf-phase-menstrual:  #CB9C99;
+  --sf-phase-follicular: #A9C098;
+  --sf-phase-ovulation:  #E4C685;
+  --sf-phase-luteal:     #B4A2B9;
+
+  --sf-shadow-e0: 0 1px 2px rgba(0,0,0,.35);
+  --sf-shadow-e1: 0 1px 2px rgba(0,0,0,.35), 0 3px 12px rgba(0,0,0,.4);
+  --sf-shadow-e2: 0 6px 28px rgba(0,0,0,.5);
+
+  --sf-hero-a: #3A3242;
+  --sf-hero-b: #5B4E6C;
+  --sf-on-hero: #F5F2F7;
+
+  --sf-orb-deep:   #05081A;
+  --sf-orb-base:   #3C4874;
+  --sf-orb-ice:    rgba(168,204,236,0.68);
+  --sf-orb-cyan:   rgba(128,212,218,0.60);
+  --sf-orb-lav:    rgba(186,176,224,0.62);
+  --sf-orb-silver: rgba(222,230,244,0.54);
+  --sf-orb-glow:   #6E96C4;
+  --sf-orb-hi:     rgba(255,255,255,0.92);
+
+  --sf-glass-bg:     rgba(40,38,44,0.52);
+  --sf-glass-border: rgba(158,200,236,0.22);
+  --sf-glass-sheen:  rgba(255,255,255,0.09);
+  --sf-glass-tint:   rgba(120,180,224,0.12);
+}
+
+:root[data-theme="day"] {
+  --sf-bg:      #EFEFF1;
+  --sf-card:    #F7F7F9;
+  --sf-raised:  #FDFDFE;
+  --sf-border:  #E2E2E6;
+  --sf-border2: #CCCCD3;
+  --sf-text:    #1C1C1E;
+  --sf-sub:     #54545A;
+  --sf-muted:   #8A8A90;
+
+  --sf-accent:      #7E6E8F;
+  --sf-accent-soft: #A99DB6;
+  --sf-accent-deep: #5B4E6C;
+  --sf-accent-wash: rgba(126,110,143,0.13);
+  --sf-on-accent:   #FFFFFF;
+
+  --sf-red:     #B0574F;
+  --sf-purple:  #8E7C93;
+  --sf-green:   #7FA08F;
+  --sf-green-dark: #5C7E6C;
+  --sf-orange:  #C9A15E;
+  --sf-yellow:  #D2A85F;
+  --sf-blue:    #6E8CA0;
+  --sf-pink:    #B0796F;
+  --sf-overlay: rgba(24,24,28,0.45);
+
+  --sf-mood-calm:      #7FA08F;
+  --sf-mood-neutral:   #C6B291;
+  --sf-mood-tender:    #9D93B0;
+  --sf-mood-heavy:     #6E7C92;
+  --sf-mood-activated: #C9A15E;
+
+  --sf-phase-menstrual:  #B07C79;
+  --sf-phase-follicular: #8FA97E;
+  --sf-phase-ovulation:  #D2A85F;
+  --sf-phase-luteal:     #8E7C93;
+
+  --sf-shadow-e0: 0 1px 2px rgba(28,28,40,.05);
+  --sf-shadow-e1: 0 1px 2px rgba(28,28,40,.05), 0 3px 10px rgba(28,28,40,.06);
+  --sf-shadow-e2: 0 6px 26px rgba(28,28,40,.10);
+
+  --sf-hero-a: #5B4E6C;
+  --sf-hero-b: #7E6E8F;
+  --sf-on-hero: #F5F2F7;
+
+  --sf-orb-deep:   #0B1230;
+  --sf-orb-base:   #56659E;
+  --sf-orb-ice:    rgba(196,228,250,0.88);
+  --sf-orb-cyan:   rgba(150,236,238,0.78);
+  --sf-orb-lav:    rgba(210,200,248,0.80);
+  --sf-orb-silver: rgba(246,249,255,0.75);
+  --sf-orb-glow:   #9FC4E8;
+  --sf-orb-hi:     rgba(255,255,255,1);
+
+  --sf-glass-bg:     rgba(247,248,252,0.55);
+  --sf-glass-border: rgba(255,255,255,0.72);
+  --sf-glass-sheen:  rgba(255,255,255,0.60);
+  --sf-glass-tint:   rgba(150,196,232,0.12);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -8,13 +257,17 @@ html, body {
   height: 100%;
 }
 
+:root {
+  interpolate-size: allow-keywords;
+}
+
 body {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Avenir Next', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #F4F4F5;
+  background: var(--sf-bg);
   min-height: 100vh;
-  color: #111118;
+  color: var(--sf-text);
 }
 
 #root {
@@ -22,5 +275,240 @@ body {
   max-width: 430px;
   margin: 0 auto;
   min-height: 100svh;
-  background: #F4F4F5;
+  background: var(--sf-bg);
+}
+
+/* Спокойное появление экранов */
+.screen-enter {
+  animation: screen-fade 420ms cubic-bezier(.22,.61,.36,1);
+}
+@keyframes screen-fade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@property --sf-orb-hi-x   { syntax: '<percentage>'; inherits: false; initial-value: 32%; }
+@property --sf-orb-hi-y   { syntax: '<percentage>'; inherits: false; initial-value: 26%; }
+@property --sf-orb-ice-x  { syntax: '<percentage>'; inherits: false; initial-value: 70%; }
+@property --sf-orb-ice-y  { syntax: '<percentage>'; inherits: false; initial-value: 24%; }
+@property --sf-orb-cyan-x { syntax: '<percentage>'; inherits: false; initial-value: 26%; }
+@property --sf-orb-cyan-y { syntax: '<percentage>'; inherits: false; initial-value: 60%; }
+@property --sf-orb-lav-x  { syntax: '<percentage>'; inherits: false; initial-value: 60%; }
+@property --sf-orb-lav-y  { syntax: '<percentage>'; inherits: false; initial-value: 76%; }
+
+/* ── Орб-компаньон «Свет» ─────────────────────────────────────────────
+   Капля жидкого стекла: холодная иридесценция (лёд/циан/лаванда/серебро)
+   поверх глубокой тёмной сердцевины, с резким зеркальным бликом. Форма
+   морфит, поверхность дышит, пятна дрейфуют разнопериодно (органика).
+   Каждый экземпляр получает свой --sf-orb-delay (десинхронизация).
+   Размер задаётся инлайн width/height в Companion.jsx. */
+.sf-orb-wrap {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--sf-orb-glow) 55%, transparent));
+}
+.sf-orb-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sf-orb {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+  border-radius: 58% 42% 63% 37% / 39% 61% 39% 61%;
+  background:
+    radial-gradient(circle at var(--sf-orb-hi-x) var(--sf-orb-hi-y), #fff 0%, var(--sf-orb-hi) 4%, transparent 9%),
+    radial-gradient(circle at var(--sf-orb-ice-x) var(--sf-orb-ice-y), var(--sf-orb-ice) 0%, transparent 44%),
+    radial-gradient(circle at var(--sf-orb-cyan-x) var(--sf-orb-cyan-y), var(--sf-orb-cyan) 0%, transparent 42%),
+    radial-gradient(circle at var(--sf-orb-lav-x) var(--sf-orb-lav-y), var(--sf-orb-lav) 0%, transparent 46%),
+    radial-gradient(circle at 80% 84%, var(--sf-orb-deep) 0%, transparent 40%),
+    radial-gradient(circle at 16% 88%, var(--sf-orb-deep) 0%, transparent 34%),
+    radial-gradient(circle at 42% 36%, var(--sf-orb-base) 0%, var(--sf-orb-deep) 100%);
+  box-shadow:
+    0 0 28px -6px var(--sf-orb-glow),
+    inset -9px -13px 24px rgba(3,5,16,0.58),
+    inset 9px 11px 18px rgba(255,255,255,0.5);
+  animation:
+    sf-orb-morph 8.9s cubic-bezier(.5,.05,.35,.95) infinite,
+    sf-orb-breathe 6.7s cubic-bezier(.45,0,.55,1) infinite,
+    sf-orb-hi-drift 11.3s cubic-bezier(.6,.02,.32,1) infinite,
+    sf-orb-ice-drift 14.9s ease-in-out infinite,
+    sf-orb-cyan-drift 19.7s cubic-bezier(.5,.1,.4,.9) infinite,
+    sf-orb-lav-drift 9.1s ease-in-out infinite;
+  animation-delay: var(--sf-orb-delay, 0s);
+}
+/* Резкий бегущий блик — как отсвет на полированном хроме/жидком стекле,
+   а не мягкое сияние: острые края, screen-блендинг для настоящей яркости. */
+.sf-orb::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 37%,
+    color-mix(in srgb, var(--sf-orb-hi) 80%, transparent) 46%,
+    var(--sf-orb-hi) 50%,
+    color-mix(in srgb, var(--sf-orb-hi) 80%, transparent) 54%,
+    transparent 63%,
+    transparent 100%
+  );
+  mix-blend-mode: screen;
+  animation: sf-orb-sweep 7.6s cubic-bezier(.4,0,.2,1) infinite;
+  animation-delay: var(--sf-orb-delay, 0s);
+}
+.sf-orb::after {
+  content: "";
+  position: absolute;
+  inset: -25%;
+  background: repeating-linear-gradient(
+    72deg,
+    transparent 0% 7%,
+    color-mix(in srgb, var(--sf-orb-silver) 72%, transparent) 7.6%,
+    transparent 8.4% 20%,
+    color-mix(in srgb, var(--sf-orb-ice) 58%, transparent) 20.8%,
+    transparent 21.6% 34%
+  );
+  mix-blend-mode: screen;
+  animation: sf-orb-flow 16.4s linear infinite;
+  animation-delay: var(--sf-orb-delay, 0s);
+}
+@keyframes sf-orb-morph {
+  0%   { border-radius: 58% 42% 63% 37% / 39% 61% 39% 61%; }
+  19%  { border-radius: 44% 56% 51% 49% / 63% 46% 54% 37%; }
+  37%  { border-radius: 65% 35% 43% 57% / 40% 62% 38% 60%; }
+  58%  { border-radius: 48% 52% 61% 39% / 58% 37% 63% 42%; }
+  73%  { border-radius: 54% 46% 39% 61% / 46% 57% 43% 54%; }
+  88%  { border-radius: 39% 61% 47% 53% / 51% 54% 46% 49%; }
+  100% { border-radius: 58% 42% 63% 37% / 39% 61% 39% 61%; }
+}
+@keyframes sf-orb-breathe {
+  0%   { transform: scale(0.935) rotate(-1.6deg); }
+  38%  { transform: scale(1.055) rotate(0.9deg); }
+  67%  { transform: scale(0.985) rotate(-0.4deg); }
+  100% { transform: scale(0.935) rotate(-1.6deg); }
+}
+@keyframes sf-orb-sweep {
+  0%   { transform: translate(-40%, -14%) rotate(0deg); opacity: 0; }
+  9%   { opacity: .95; }
+  45%  { opacity: .95; }
+  60%  { transform: translate(30%, 16%) rotate(7deg); opacity: 0; }
+  100% { transform: translate(30%, 16%) rotate(7deg); opacity: 0; }
+}
+@keyframes sf-orb-flow {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: -320% 55%; }
+}
+@keyframes sf-orb-hi-drift {
+  0%   { --sf-orb-hi-x: 32%; --sf-orb-hi-y: 26%; }
+  27%  { --sf-orb-hi-x: 45%; --sf-orb-hi-y: 19%; }
+  44%  { --sf-orb-hi-x: 38%; --sf-orb-hi-y: 35%; }
+  71%  { --sf-orb-hi-x: 25%; --sf-orb-hi-y: 23%; }
+  100% { --sf-orb-hi-x: 32%; --sf-orb-hi-y: 26%; }
+}
+@keyframes sf-orb-ice-drift {
+  0%   { --sf-orb-ice-x: 70%; --sf-orb-ice-y: 24%; }
+  33%  { --sf-orb-ice-x: 81%; --sf-orb-ice-y: 39%; }
+  58%  { --sf-orb-ice-x: 61%; --sf-orb-ice-y: 28%; }
+  82%  { --sf-orb-ice-x: 74%; --sf-orb-ice-y: 15%; }
+  100% { --sf-orb-ice-x: 70%; --sf-orb-ice-y: 24%; }
+}
+@keyframes sf-orb-cyan-drift {
+  0%   { --sf-orb-cyan-x: 26%; --sf-orb-cyan-y: 60%; }
+  30%  { --sf-orb-cyan-x: 17%; --sf-orb-cyan-y: 49%; }
+  62%  { --sf-orb-cyan-x: 35%; --sf-orb-cyan-y: 67%; }
+  88%  { --sf-orb-cyan-x: 23%; --sf-orb-cyan-y: 53%; }
+  100% { --sf-orb-cyan-x: 26%; --sf-orb-cyan-y: 60%; }
+}
+@keyframes sf-orb-lav-drift {
+  0%   { --sf-orb-lav-x: 60%; --sf-orb-lav-y: 76%; }
+  35%  { --sf-orb-lav-x: 71%; --sf-orb-lav-y: 85%; }
+  60%  { --sf-orb-lav-x: 49%; --sf-orb-lav-y: 69%; }
+  85%  { --sf-orb-lav-x: 63%; --sf-orb-lav-y: 81%; }
+  100% { --sf-orb-lav-x: 60%; --sf-orb-lav-y: 76%; }
+}
+
+/* ── Жидкое стекло ─────────────────────────────────────────────────────
+   Полупрозрачная поверхность с размытием фона и холодным иридесцентным
+   краем. Только для акцентных/«геройских» моментов — обычные карточки
+   дневника остаются на базовом уровне без стекла. */
+.sf-glass {
+  position: relative;
+  background:
+    linear-gradient(150deg, var(--sf-glass-tint), transparent 55%),
+    var(--sf-glass-bg);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  border: 1px solid var(--sf-glass-border);
+  box-shadow: var(--sf-shadow-e2), inset 0 1px 0 var(--sf-glass-sheen);
+}
+.sf-glass--soft {
+  box-shadow: var(--sf-shadow-e1), inset 0 1px 0 var(--sf-glass-sheen);
+}
+
+/* ── Аффорданс касания ────────────────────────────────────────────────
+   Лёгкий отклик на наведение/нажатие для кликабельных «геройских» блоков. */
+.sf-tappable {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+@media (hover: hover) {
+  .sf-tappable:hover { transform: translateY(-1px); }
+}
+.sf-tappable:active { transform: translateY(0) scale(0.995); }
+
+/* ── Плавное раскрытие блоков (высота + прозрачность) ──────────────────
+   grid-template-rows 0fr→1fr анимирует авто-высоту без JS-замеров. */
+.sf-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(.4,0,.2,1);
+}
+.sf-collapse > .sf-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.sf-collapse[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.sf-collapse[data-open="true"] > .sf-collapse-inner {
+  opacity: 1;
+}
+
+/* Нативный <details>: раскрытие содержимого делает сам браузер
+   (content-visibility в UA-стиле ::details-content), мы только
+   добавляем плавное появление поверх — без анимации высоты, чтобы
+   не зависеть от interpolate-size и не залипать скрытым там, где
+   ::details-content распознаётся, но block-size 0→auto не анимируется. */
+.sf-details::details-content {
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+.sf-details[open]::details-content {
+  opacity: 1;
+}
+.sf-details > summary { list-style: none; }
+.sf-details > summary::-webkit-details-marker { display: none; }
+.sf-details-caret {
+  display: inline-block;
+  transition: transform 240ms ease;
+}
+.sf-details[open] .sf-details-caret {
+  transform: rotate(180deg);
+}
+
+/* Уважение к prefers-reduced-motion — глобальный предохранитель:
+   орб замирает мягкой каплей, дыхание ведут звук и текст (Breathing478) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

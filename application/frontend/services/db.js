@@ -231,6 +231,49 @@ export const dbAISessions = {
   },
 };
 
+export const dbCompanionChat = {
+  getConsent() {
+    return api("/api/companion/consent");
+  },
+
+  grantConsent() {
+    return api("/api/companion/consent", { method: "POST" });
+  },
+
+  revokeConsent() {
+    return api("/api/companion/consent", { method: "DELETE" });
+  },
+
+  async getHistory() {
+    const data = await api("/api/companion/chat/history");
+    return data.messages || [];
+  },
+
+  send(message) {
+    return api("/api/companion/chat", {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    });
+  },
+
+  deleteHistory() {
+    return api("/api/companion/chat/history", { method: "DELETE" });
+  },
+
+  async exportBlob() {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/companion/chat/export`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return res.blob();
+  },
+};
+
 export async function importBackup({ logs = [], periodHistory = [], silenceLogs = [] }) {
   return api("/api/import/local", {
     method: "POST",

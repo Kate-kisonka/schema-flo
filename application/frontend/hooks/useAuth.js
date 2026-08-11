@@ -18,7 +18,7 @@ function clearAuthSession() {
   localStorage.removeItem(USER_KEY);
 }
 
-function consumeOAuthRedirect() {
+function readOAuthRedirect() {
   const hash = window.location.hash || "";
   if (!hash.startsWith("#auth=")) return null;
 
@@ -33,29 +33,38 @@ function consumeOAuthRedirect() {
   } catch {
     return null;
   }
-  window.history.replaceState(null, "", window.location.pathname + window.location.search);
   return { token, user };
 }
 
+function initializeAuthState() {
+  if (typeof window === "undefined") {
+    return { user: null, loading: false, tokenToValidate: null, oauthSession: null };
+  }
+
+  const oauthSession = readOAuthRedirect();
+  if (oauthSession) {
+    return { user: oauthSession.user, loading: false, tokenToValidate: null, oauthSession };
+  }
+
+  const token = localStorage.getItem(TOKEN_KEY);
+  return { user: null, loading: Boolean(token), tokenToValidate: token, oauthSession: null };
+}
+
 export function useAuth() {
-  const [user, setUser]       = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [initialAuth] = useState(initializeAuthState);
+  const [user, setUser]       = useState(initialAuth.user);
+  const [loading, setLoading] = useState(initialAuth.loading);
   const [error, setError]     = useState(null);
 
   useEffect(() => {
-    const oauthSession = consumeOAuthRedirect();
-    if (oauthSession) {
-      saveAuthSession(oauthSession.token, oauthSession.user);
-      setUser(oauthSession.user);
-      setLoading(false);
+    if (initialAuth.oauthSession) {
+      saveAuthSession(initialAuth.oauthSession.token, initialAuth.oauthSession.user);
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
       return;
     }
 
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      setLoading(false);
-      return;
-    }
+    const token = initialAuth.tokenToValidate;
+    if (!token) return;
 
     getMe(token)
       .then(({ user }) => {
@@ -64,7 +73,7 @@ export function useAuth() {
       })
       .catch(() => clearAuthSession())
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialAuth]);
 
   const login = async (email, password) => {
     setError(null);

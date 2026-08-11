@@ -1,5 +1,6 @@
 import React from "react";
 import { T } from "../constants/theme.js";
+import Icon from "./icons.jsx";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -21,14 +22,16 @@ export default class ErrorBoundary extends React.Component {
     return (
       <div style={{ minHeight: "100vh", background: T.bg, fontFamily: T.font, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ textAlign: "center", maxWidth: 320 }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>🌧️</div>
+          <div style={{ marginBottom: 16, color: T.muted, display: "flex", justifyContent: "center" }}>
+            <Icon name="rainCloud" size={40} strokeWidth={1.5} />
+          </div>
           <div style={{ fontSize: 18, marginBottom: 8, color: T.text }}>Что-то пошло не так</div>
           <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.6, marginBottom: 24 }}>
             Данные в безопасности. Попробуй обновить страницу.
           </div>
           <button
             onClick={() => window.location.reload()}
-            style={{ padding: "12px 24px", background: T.accent, color: "#fff", border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: T.font }}>
+            style={{ padding: "12px 24px", background: T.accent, color: T.onAccent, border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", fontFamily: T.font }}>
             Обновить страницу
           </button>
         </div>

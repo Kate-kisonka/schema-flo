@@ -1,38 +1,47 @@
-button {
-  transition: background 0.12s ease, opacity 0.12s ease, transform 0.1s ease;
-  cursor: pointer;
-  font-family: 'Inter', system-ui, sans-serif;
+button,
+input,
+textarea {
+  font: inherit;
 }
 
-button:active {
-  transform: scale(0.97);
-  opacity: 0.85;
+button {
+  transition:
+    background-color var(--sf-motion-micro, 200ms) ease,
+    border-color var(--sf-motion-micro, 200ms) ease,
+    color var(--sf-motion-micro, 200ms) ease,
+    opacity var(--sf-motion-micro, 200ms) ease,
+    transform var(--sf-motion-micro, 200ms) ease;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
 
 input[type="range"] {
-  accent-color: #5E6AD2;
+  accent-color: var(--sf-accent);
 }
 
-textarea, input[type="text"] {
-  font-family: 'Inter', system-ui, sans-serif;
+textarea:focus-visible,
+input:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--sf-accent);
+  outline-offset: 2px;
 }
 
-textarea:focus,
-input:focus {
-  border-color: #5E6AD2 !important;
-  box-shadow: 0 0 0 3px rgba(94, 106, 210, 0.12) !important;
-  outline: none !important;
+::-webkit-scrollbar {
+  width: 4px;
 }
 
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-thumb { background: #D4D4D8; border-radius: 2px; }
-::-webkit-scrollbar-track { background: transparent; }
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+::-webkit-scrollbar-thumb {
+  background: var(--sf-border2);
+  border-radius: 2px;
 }
 
-.screen-enter {
-  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+::-webkit-scrollbar-track {
+  background: transparent;
 }

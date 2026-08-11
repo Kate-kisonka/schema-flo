@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { T } from "../constants/theme.js";
 import { formatDate } from "../utils.js";
+import Icon from "../components/icons.jsx";
 
 const S = {
   content: { padding: "0 16px 100px" },
@@ -22,10 +23,12 @@ export default function SupportScreen({ ai }) {
     <div style={{ paddingBottom: 80 }}>
       {/* Табы */}
       <div style={{ display: "flex", borderBottom: `1px solid ${T.border}`, background: T.card, position: "sticky", top: 0, zIndex: 5 }}>
-        {[{ id: "chat", label: "💬 Чат" }, { id: "history", label: "📖 Сессии" }].map(t => (
+        {[{ id: "chat", icon: "chat", label: "Чат" }, { id: "history", icon: "book", label: "Сессии" }].map(t => (
           <button key={t.id}
-            style={{ flex: 1, padding: "10px 2px", border: "none", background: "none", fontSize: 12, color: supportTab === t.id ? T.text : T.muted, borderBottom: supportTab === t.id ? `2px solid ${T.text}` : "2px solid transparent", cursor: "pointer", fontFamily: T.font }}
-            onClick={() => setSupportTab(t.id)}>{t.label}</button>
+            style={{ flex: 1, padding: "10px 2px", border: "none", background: "none", fontSize: 12, color: supportTab === t.id ? T.text : T.muted, borderBottom: supportTab === t.id ? `2px solid ${T.text}` : "2px solid transparent", cursor: "pointer", fontFamily: T.font, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+            onClick={() => setSupportTab(t.id)}>
+            <Icon name={t.icon} size={14} />{t.label}
+          </button>
         ))}
       </div>
 
@@ -64,13 +67,17 @@ export default function SupportScreen({ ai }) {
                 {quickStates.map(qs => (
                   <button key={qs.id} onClick={() => sendToAI(qs.prompt)}
                     style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 11, padding: "12px 10px", cursor: "pointer", fontFamily: T.font, textAlign: "center" }}>
-                    <div style={{ fontSize: 22, marginBottom: 5 }}>{qs.emoji}</div>
+                    <div style={{ marginBottom: 5, display: "flex", justifyContent: "center", color: T.sub }}>
+                      <Icon name={qs.icon} size={22} strokeWidth={1.6} />
+                    </div>
                     <div style={{ fontSize: 12, color: T.text }}>{qs.label}</div>
                   </button>
                 ))}
               </div>
               <div style={{ textAlign: "center", marginBottom: 8 }}>
-                <button onClick={() => ai.setShowQuickStates(false)} style={{ background: "none", border: "none", fontSize: 12, color: T.muted, cursor: "pointer", fontFamily: T.font }}>или написать самой →</button>
+                <button onClick={() => ai.setShowQuickStates(false)} style={{ background: "none", border: "none", fontSize: 12, color: T.muted, cursor: "pointer", fontFamily: T.font, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  или написать самой <Icon name="arrowRight" size={12} />
+                </button>
               </div>
             </div>
           )}
@@ -78,7 +85,9 @@ export default function SupportScreen({ ai }) {
           <div>
             {aiMessages.length === 0 && !showQuickStates && (
               <div style={{ textAlign: "center", padding: "40px 20px", color: T.muted }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>🌿</div>
+                <div style={{ marginBottom: 8, display: "flex", justifyContent: "center" }}>
+                  <Icon name="sprout" size={28} strokeWidth={1.5} />
+                </div>
                 <div style={{ fontSize: 13, fontStyle: "italic" }}>Напиши что сейчас происходит</div>
               </div>
             )}
@@ -105,7 +114,9 @@ export default function SupportScreen({ ai }) {
       {supportTab === "chat" && (
         <div style={{ display: "flex", gap: 7, position: "fixed", bottom: 60, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, padding: "10px 15px", background: T.bg, borderTop: `1px solid ${T.border}`, boxSizing: "border-box" }}>
           {aiMessages.length > 0 && (
-            <button onClick={resetChat} style={{ width: 36, height: 36, borderRadius: "50%", border: `1px solid ${T.border}`, background: "none", cursor: "pointer", fontSize: 14, flexShrink: 0 }}>↩</button>
+            <button onClick={resetChat} aria-label="Начать разговор заново" style={{ width: 36, height: 36, borderRadius: "50%", border: `1px solid ${T.border}`, background: "none", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: T.text }}>
+              <Icon name="undo" size={15} />
+            </button>
           )}
           <input
             value={aiInput}
@@ -114,7 +125,9 @@ export default function SupportScreen({ ai }) {
             placeholder="Напиши что чувствуешь..."
             style={{ flex: 1, padding: "8px 12px", borderRadius: 18, border: `1px solid ${T.border}`, background: T.card, fontFamily: T.font, fontSize: 13, color: T.text, outline: "none" }}
           />
-          <button onClick={() => sendToAI()} style={{ width: 36, height: 36, borderRadius: "50%", background: T.text, color: T.bg, border: "none", cursor: "pointer", fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>↑</button>
+          <button onClick={() => sendToAI()} aria-label="Отправить сообщение" style={{ width: 36, height: 36, borderRadius: "50%", background: T.text, color: T.bg, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon name="arrowUp" size={16} />
+          </button>
         </div>
       )}
     </div>

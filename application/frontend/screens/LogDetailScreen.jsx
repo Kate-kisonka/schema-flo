@@ -1,7 +1,8 @@
 import React from "react";
-import { T } from "../constants/theme.js";
+import { T, wash } from "../constants/theme.js";
 import { SCHEMAS, MOODS, DISCHARGE_TYPES, LIBIDO, PHYSICAL_SYMPTOMS, EXERCISES } from "../data.js";
 import { getPhase, formatDate, getDayOfWeek, phaseLabel } from "../utils.js";
+import Icon from "../components/icons.jsx";
 
 const S = {
   card: { background: T.card, borderRadius: 12, padding: "16px", marginBottom: 8, border: `1px solid ${T.border}` },
@@ -15,9 +16,11 @@ export default function LogDetailScreen({ log, onBack }) {
 
   return (
     <div style={{ padding: "0 15px", paddingBottom: 80 }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", fontFamily: T.font, fontSize: 13, padding: "16px 0 10px" }}>← История</button>
+      <button onClick={onBack} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", fontFamily: T.font, fontSize: 13, padding: "16px 0 10px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+        <Icon name="arrowLeft" size={14} /> История
+      </button>
 
-      <div style={{ ...S.card, background: lp.color + "15", borderColor: lp.color + "44" }}>
+      <div style={{ ...S.card, background: wash(lp.color, 15), borderColor: wash(lp.color, 44) }}>
         <div style={{ fontSize: 16, marginBottom: 3 }}>{getDayOfWeek(log.date)}, {formatDate(log.date)}</div>
         <div style={{ fontSize: 12, color: lp.color }}>День цикла {log.cycleDay} · {phaseLabel(log.phase)}</div>
       </div>
@@ -34,8 +37,8 @@ export default function LogDetailScreen({ log, onBack }) {
             {log.moods.map(id => {
               const m = MOODS.find(x => x.id === id);
               return m ? (
-                <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 9px", borderRadius: 14, background: m.color + "22", border: `1px solid ${m.color}`, fontSize: 12 }}>
-                  {m.emoji} {m.label}
+                <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 9px", borderRadius: 14, background: wash(m.color, 22), border: `1px solid ${m.color}`, fontSize: 12 }}>
+                  <Icon name={m.icon} size={13} /> {m.label}
                 </span>
               ) : null;
             })}
@@ -51,7 +54,7 @@ export default function LogDetailScreen({ log, onBack }) {
             const sc = SCHEMAS.find(s => s.id === id);
             return sc ? (
               <div key={id} style={{ display: "flex", alignItems: "flex-start", gap: 7, marginBottom: 7 }}>
-                <span style={{ fontSize: 14, marginTop: 1 }}>{sc.emoji}</span>
+                <span style={{ marginTop: 1, display: "inline-flex", color: T.muted }}><Icon name={sc.icon} size={14} /></span>
                 <div>
                   <div style={{ fontSize: 12 }}>{sc.name}</div>
                   <div style={{ fontSize: 11, color: T.muted }}>{sc.desc}</div>
@@ -65,13 +68,13 @@ export default function LogDetailScreen({ log, onBack }) {
       {(log.symptoms?.length > 0 || log.discharge || log.libido) && (
         <div style={S.card}>
           <p style={S.st}>Тело</p>
-          {log.discharge && <div style={{ fontSize: 12, marginBottom: 5 }}>Выделения: {DISCHARGE_TYPES.find(d => d.id === log.discharge)?.emoji} {DISCHARGE_TYPES.find(d => d.id === log.discharge)?.label}</div>}
-          {log.libido    && <div style={{ fontSize: 12, marginBottom: 5 }}>Либидо: {LIBIDO.find(l => l.id === log.libido)?.emoji} {LIBIDO.find(l => l.id === log.libido)?.label}</div>}
+          {log.discharge && <div style={{ fontSize: 12, marginBottom: 5, display: "flex", alignItems: "center", gap: 5 }}>Выделения: <Icon name={DISCHARGE_TYPES.find(d => d.id === log.discharge)?.icon} size={13} /> {DISCHARGE_TYPES.find(d => d.id === log.discharge)?.label}</div>}
+          {log.libido    && <div style={{ fontSize: 12, marginBottom: 5, display: "flex", alignItems: "center", gap: 5 }}>Либидо: <Icon name={LIBIDO.find(l => l.id === log.libido)?.icon} size={13} /> {LIBIDO.find(l => l.id === log.libido)?.label}</div>}
           {log.symptoms?.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
               {log.symptoms.map(id => {
                 const s = PHYSICAL_SYMPTOMS.find(x => x.id === id);
-                return s ? <span key={id} style={{ fontSize: 12 }}>{s.emoji} {s.label}</span> : null;
+                return s ? <span key={id} style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}><Icon name={s.icon} size={13} /> {s.label}</span> : null;
               })}
             </div>
           )}
@@ -83,7 +86,7 @@ export default function LogDetailScreen({ log, onBack }) {
           <p style={S.st}>Практики дня</p>
           {log.exercises.map(id => {
             const ex = ALL_EXERCISES.find(e => e.id === id);
-            return ex ? <div key={id} style={{ fontSize: 12, marginBottom: 4 }}>{ex.icon} {ex.name}</div> : null;
+            return ex ? <div key={id} style={{ fontSize: 12, marginBottom: 4, display: "flex", alignItems: "center", gap: 5 }}><Icon name={ex.icon} size={13} /> {ex.name}</div> : null;
           })}
         </div>
       )}

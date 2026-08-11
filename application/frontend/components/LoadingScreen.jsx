@@ -1,5 +1,6 @@
 import React from "react";
 import { T } from "../constants/theme.js";
+import Icon from "./icons.jsx";
 
 export default function LoadingScreen() {
   return (
@@ -15,7 +16,9 @@ export default function LoadingScreen() {
       }}
     >
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 36, marginBottom: 12, animation: "pulse 1.5s ease-in-out infinite" }}>🌙</div>
+        <div style={{ marginBottom: 12, animation: "pulse 1.5s ease-in-out infinite", color: T.accent, display: "flex", justifyContent: "center" }}>
+          <Icon name="moon" size={36} strokeWidth={1.5} />
+        </div>
         <p style={{ fontSize: 14, color: T.muted, margin: 0 }}>Загружаем твои данные…</p>
       </div>
       <style>{`

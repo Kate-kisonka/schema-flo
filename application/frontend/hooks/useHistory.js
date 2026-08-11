@@ -21,7 +21,7 @@ export function useHistory(logs) {
       .map(([p, vals]) => ({ phase: p, avg: vals.reduce((a, b) => a + b, 0) / vals.length }))
       .sort((a, b) => b.avg - a.avg);
     if (phaseAvgs.length > 1)
-      result.push({ emoji: "🌙", text: `Фаза «${phaseLabel(phaseAvgs[0].phase)}» — интенсивность выше всего (${phaseAvgs[0].avg.toFixed(1)}/10)` });
+      result.push({ icon: "moon", text: `Фаза «${phaseLabel(phaseAvgs[0].phase)}» — интенсивность выше всего (${phaseAvgs[0].avg.toFixed(1)}/10)` });
 
     // Самое частое настроение
     const moodCount = {};
@@ -29,7 +29,7 @@ export function useHistory(logs) {
     const topMood = Object.entries(moodCount).sort((a, b) => b[1] - a[1])[0];
     if (topMood) {
       const m = MOODS.find(x => x.id === topMood[0]);
-      if (m) result.push({ emoji: m.emoji, text: `Самое частое состояние за 14 дней — "${m.label}" (${topMood[1]} раз)` });
+      if (m) result.push({ icon: m.icon, text: `Самое частое состояние за 14 дней — "${m.label}" (${topMood[1]} раз)` });
     }
 
     // Самая активная схема
@@ -38,7 +38,7 @@ export function useHistory(logs) {
     const topSch = Object.entries(schCount).sort((a, b) => b[1] - a[1])[0];
     if (topSch) {
       const sc = SCHEMAS.find(s => s.id === topSch[0]);
-      if (sc) result.push({ emoji: sc.emoji, text: `Схема "${sc.name}" активировалась чаще всего — ${topSch[1]} раз за 2 недели` });
+      if (sc) result.push({ icon: sc.icon, text: `Схема "${sc.name}" активировалась чаще всего — ${topSch[1]} раз за 2 недели` });
     }
 
     // Корреляция схемы с лютеиновой фазой
@@ -49,7 +49,7 @@ export function useHistory(logs) {
       const top = Object.entries(lutSchemas).sort((a, b) => b[1] - a[1])[0];
       if (top) {
         const sc = SCHEMAS.find(s => s.id === top[0]);
-        if (sc) result.push({ emoji: "⚡", text: `В лютеиновую фазу схема "${sc.name}" активна в ${Math.round((top[1] / lutLogs.length) * 100)}% дней` });
+        if (sc) result.push({ icon: "bolt", text: `В лютеиновую фазу схема "${sc.name}" активна в ${Math.round((top[1] / lutLogs.length) * 100)}% дней` });
       }
     }
 
@@ -58,8 +58,8 @@ export function useHistory(logs) {
       const half = Math.floor(recent.length / 2);
       const older = recent.slice(half).reduce((s, l) => s + (l.intensity || 5), 0) / (recent.length - half);
       const newer = recent.slice(0, half).reduce((s, l) => s + (l.intensity || 5), 0) / half;
-      if (newer < older - 0.5) result.push({ emoji: "📉", text: `Интенсивность снижается — в последние дни в среднем ${newer.toFixed(1)}/10` });
-      else if (newer > older + 0.5) result.push({ emoji: "📈", text: `Интенсивность нарастает — в последние дни в среднем ${newer.toFixed(1)}/10` });
+      if (newer < older - 0.5) result.push({ icon: "trendDown", text: `Интенсивность снижается — в последние дни в среднем ${newer.toFixed(1)}/10` });
+      else if (newer > older + 0.5) result.push({ icon: "trendUp", text: `Интенсивность нарастает — в последние дни в среднем ${newer.toFixed(1)}/10` });
     }
 
     return result;
