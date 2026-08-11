@@ -27,12 +27,12 @@ services:
     ports:
       - target: 80 #внутри контейнера для прохода дальше
         published: 80 #наружу, можно войти снаружи
+        host_ip: 127.0.0.1
         protocol: tcp
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.schema_flo_dashboard.rule=Host(`traefik.localhost`)"
-      - "traefik.http.routers.schema_flo_dashboard.entrypoints=web"
-      - "traefik.http.routers.schema_flo_dashboard.service=api@internal"
+      - target: 8080
+        published: 8080
+        host_ip: 127.0.0.1
+        protocol: tcp
     healthcheck: #если нездоров, то до кадди не доходит. проверка каждые 30 сек
       test: ["CMD", "traefik", "healthcheck", "--ping", "--ping.entrypoint=web", "--entrypoints.web.address=:80"]
       interval: 30s
@@ -80,9 +80,9 @@ services:
     image: postgres:16.14-alpine3.24
     restart: unless-stopped
     environment:
-      POSTGRES_DB: schema_flo
-      POSTGRES_USER: schema_flo
-      POSTGRES_PASSWORD: schema_flo
+      POSTGRES_DB: ${POSTGRES_DB:-schema_flo}
+      POSTGRES_USER: ${POSTGRES_USER:-schema_flo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - source: postgres_data
         target: /var/lib/postgresql/data
@@ -90,20 +90,21 @@ services:
     networks:
       - schema_flo_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U schema_flo -d schema_flo"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 10
 
   pgadmin:
-    image: dpage/pgadmin4:snapshot # актуальная на текущий день на докерхаб, но и до этого была актуальная. ее.. надо указывать?
+    image: dpage/pgadmin4:9.16
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: schema_flo
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@localhost.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?PGADMIN_DEFAULT_PASSWORD is required}
     ports:
       - target: 80 #внутри контейнера
         published: 5050 #снаружи хоста
+        host_ip: 127.0.0.1
         protocol: tcp
         mode: host #актуально для сварм (кластерный режим(?))
     depends_on:
@@ -125,15 +126,19 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3001
-      DATABASE_URL: postgresql://schema_flo:schema_flo@postgres:5432/schema_flo
-      JWT_SECRET: local-dev-secret-change-me-min-32-chars
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-schema_flo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-schema_flo}"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       FRONTEND_URL: http://localhost
       ALLOWED_ORIGINS: http://localhost
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:3b-instruct
     networks:
       - schema_flo_network
     depends_on:
       postgres:
         condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/health || exit 1"]
       interval: 30s
@@ -141,11 +146,11 @@ services:
       retries: 3
 
   frontend:
-     build:
-       context: application/frontend
-     restart: unless-stopped
-     environment:
-       VITE_API_URL: http://localhost
+    build:
+      context: application/frontend
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: http://localhost
     volumes:
       - source: ./application/frontend
         target: /app
@@ -159,6 +164,37 @@ services:
     depends_on:
       - backend
 
+  ollama:
+    image: ollama/ollama:0.32.1
+    restart: unless-stopped
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    volumes:
+      - source: ollama_data
+        target: /root/.ollama
+        type: volume
+    networks:
+      - schema_flo_network
+    healthcheck:
+      test: ["CMD-SHELL", "OLLAMA_HOST=http://127.0.0.1:11434 ollama list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  ollama-init:
+    image: ollama/ollama:0.32.1
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ['OLLAMA_HOST=http://ollama:11434 ollama pull "$${OLLAMA_MODEL}"']
+    environment:
+      OLLAMA_MODEL: qwen2.5:3b-instruct
+    networks:
+      - schema_flo_network
+    depends_on:
+      ollama:
+        condition: service_healthy
+
 
 volumes:
   postgres_data:
@@ -166,6 +202,7 @@ volumes:
   frontend_node_modules:
   caddy_data:
   caddy_config:
+  ollama_data:
 
 networks: #создали сеть-коридор
   schema_flo_network:
