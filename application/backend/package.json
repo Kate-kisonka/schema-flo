@@ -19,7 +19,6 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.10.1",
     "pg": "^8.16.0"
   }
 }
