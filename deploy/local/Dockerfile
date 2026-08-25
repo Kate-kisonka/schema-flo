@@ -1,9 +1,9 @@
-FROM node:20-alpine
+FROM node:20.20.2-alpine3.23
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --production
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY . .
 

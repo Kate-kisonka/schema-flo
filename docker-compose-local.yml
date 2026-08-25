@@ -27,12 +27,12 @@ services:
     ports:
       - target: 80 #внутри контейнера для прохода дальше
         published: 80 #наружу, можно войти снаружи
-        host_ip: 127.0.0.1
         protocol: tcp
-      - target: 8080
-        published: 8080
-        host_ip: 127.0.0.1
-        protocol: tcp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.schema_flo_dashboard.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.schema_flo_dashboard.entrypoints=web"
+      - "traefik.http.routers.schema_flo_dashboard.service=api@internal"
     healthcheck: #если нездоров, то до кадди не доходит. проверка каждые 30 сек
       test: ["CMD", "traefik", "healthcheck", "--ping", "--ping.entrypoint=web", "--entrypoints.web.address=:80"]
       interval: 30s
@@ -75,14 +75,14 @@ services:
         condition: service_started
       frontend:
         condition: service_started
-         
+
   postgres:
     image: postgres:16.14-alpine3.24
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-schema_flo}
-      POSTGRES_USER: ${POSTGRES_USER:-schema_flo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: schema_flo
+      POSTGRES_USER: schema_flo
+      POSTGRES_PASSWORD: schema_flo
     volumes:
       - source: postgres_data
         target: /var/lib/postgresql/data
@@ -90,7 +90,7 @@ services:
     networks:
       - schema_flo_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      test: ["CMD-SHELL", "pg_isready -U schema_flo -d schema_flo"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -99,12 +99,11 @@ services:
     image: dpage/pgadmin4:9.16
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@localhost.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?PGADMIN_DEFAULT_PASSWORD is required}
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: schema_flo
     ports:
       - target: 80 #внутри контейнера
         published: 5050 #снаружи хоста
-        host_ip: 127.0.0.1
         protocol: tcp
         mode: host #актуально для сварм (кластерный режим(?))
     depends_on:
@@ -126,8 +125,8 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3001
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-schema_flo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-schema_flo}"
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      DATABASE_URL: postgresql://schema_flo:schema_flo@postgres:5432/schema_flo
+      JWT_SECRET: local-dev-secret-change-me-min-32-chars
       FRONTEND_URL: http://localhost
       ALLOWED_ORIGINS: http://localhost
       OLLAMA_URL: http://ollama:11434
@@ -148,6 +147,7 @@ services:
   frontend:
     build:
       context: application/frontend
+      target: build
     restart: unless-stopped
     environment:
       VITE_API_URL: http://localhost
@@ -158,7 +158,7 @@ services:
       - source: frontend_node_modules
         target: /app/node_modules
         type: volume
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     networks:
       - schema_flo_network
     depends_on:
@@ -194,7 +194,6 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-
 
 volumes:
   postgres_data:
