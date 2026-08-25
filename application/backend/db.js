@@ -1,25 +1,22 @@
-import dotenv from "dotenv";
 import pg from "pg";
-
-dotenv.config();
+import { buildDatabaseConfig, readConfigValue } from "./config.js";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  console.warn("[db] DATABASE_URL is not set");
+function shouldUseSsl(databaseConfig) {
+  const databaseSsl = readConfigValue("DATABASE_SSL");
+  if (databaseSsl === "true") return true;
+  if (databaseSsl === "false") return false;
+  return /neon\.tech|sslmode=require/i.test(
+    databaseConfig.connectionString ?? databaseConfig.host ?? ""
+  );
 }
 
-function shouldUseSsl(connectionString = "") {
-  if (process.env.DATABASE_SSL === "true") return true;
-  if (process.env.DATABASE_SSL === "false") return false;
-  return /neon\.tech|sslmode=require/i.test(connectionString);
-}
-
-const connectionString = process.env.DATABASE_URL;
+const databaseConfig = buildDatabaseConfig();
 
 export const pool = new Pool({
-  connectionString,
-  ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : false,
+  ...databaseConfig,
+  ssl: shouldUseSsl(databaseConfig) ? { rejectUnauthorized: false } : false,
 });
 
 export async function query(text, params) {
