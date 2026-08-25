@@ -1,0 +1,14 @@
+:80 {
+	encode zstd gzip
+
+	@backend path /api/* /health
+	handle @backend {
+		reverse_proxy backend:3001
+	}
+
+	handle {
+		root * /srv/frontend/current
+		try_files {path} /index.html
+		file_server
+	}
+}

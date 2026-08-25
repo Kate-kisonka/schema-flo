@@ -1,0 +1,307 @@
+services:
+  caddy:
+    image: ${CADDY_IMAGE:?CADDY_IMAGE with an immutable tag or digest is required}
+    command: caddy run --config /etc/caddy/Caddyfile #иди за инструкцией по этому пути
+    environment:
+      TZ: Europe/Moscow #для логов, чтобы корректное время отображалось
+    configs:
+      - source: caddy_config
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - type: volume
+        source: frontend-data
+        target: /srv/frontend
+        read_only: true
+    networks:
+      - traefik_default
+      - slns_schema_flo_internal
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.schema_flo_frontend == ${FRONTEND_VOLUME_NODE:?FRONTEND_VOLUME_NODE is required}
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        delay: 15s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+      labels: #регистрируют кадди у траефика
+        io.portainer.accesscontrol.teams: "${TEAM_ID:?TEAM_ID is required}"
+        traefik.enable: "true"
+        traefik.docker.network: traefik_default
+        traefik.http.routers.slns_schema_flo.rule: Host(`${DOMAIN:?DOMAIN is required}`)
+        traefik.http.routers.slns_schema_flo.entrypoints: websecure
+        traefik.http.routers.slns_schema_flo.tls: "true"
+        traefik.http.routers.slns_schema_flo.tls.certresolver: "${CERTRESOLVER:?CERTRESOLVER is required}"
+        traefik.http.routers.slns_schema_flo.service: slns_schema_flo_caddy
+        traefik.http.services.slns_schema_flo_caddy.loadbalancer.server.port: "80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE registry path is required}:${IMAGE_TAG:?immutable IMAGE_TAG is required}
+    environment:
+      FRONTEND_RELEASE: ${IMAGE_TAG:?immutable IMAGE_TAG is required}
+    volumes:
+      - type: volume
+        source: frontend-data
+        target: /target
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        release="/target/releases/$${FRONTEND_RELEASE}"
+        staging="$${release}.tmp.$${HOSTNAME}"
+        next_link="/target/current.next.$${HOSTNAME}"
+        mkdir -p /target/releases
+        rm -rf "$${staging}" "$${next_link}"
+        mkdir -p "$${staging}"
+        cp -a /app/dist/. "$${staging}/"
+        test -s "$${staging}/index.html"
+        if [ -d "$${release}" ]; then
+          rm -rf "$${staging}"
+        else
+          mv "$${staging}" "$${release}"
+        fi
+        chmod -R a=rX "$${release}"
+        ln -s "releases/$${FRONTEND_RELEASE}" "$${next_link}"
+        mv -Tf "$${next_link}" /target/current
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.schema_flo_frontend == ${FRONTEND_VOLUME_NODE:?FRONTEND_VOLUME_NODE is required}
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+      restart_policy:
+        condition: none
+      labels:
+        io.portainer.accesscontrol.teams: "${TEAM_ID:?TEAM_ID is required}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE registry path is required}:${IMAGE_TAG:?immutable IMAGE_TAG is required}
+    environment:
+      TZ: Europe/Moscow
+      NODE_ENV: production
+      PORT: "3001"
+      DB_HOST_FILE: /run/secrets/db_host
+      DB_PORT_FILE: /run/secrets/db_port
+      DB_USER_FILE: /run/secrets/db_user
+      DB_NAME_FILE: /run/secrets/db_name
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
+      DATABASE_SSL: ${DATABASE_SSL:-true}
+      FRONTEND_URL: https://${DOMAIN:?DOMAIN is required}
+      ALLOWED_ORIGINS: https://${DOMAIN:?DOMAIN is required}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
+    secrets:
+      - source: db_host
+        target: db_host
+      - source: db_port
+        target: db_port
+      - source: db_user
+        target: db_user
+      - source: db_name
+        target: db_name
+      - source: db_password
+        target: db_password
+      - source: jwt_secret
+        target: jwt_secret
+    networks:
+      - postgresql_network
+      - slns_schema_flo_internal
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        delay: 15s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      labels:
+        io.portainer.accesscontrol.teams: "${TEAM_ID:?TEAM_ID is required}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ollama:
+    image: ${OLLAMA_IMAGE:?OLLAMA_IMAGE with an immutable tag or digest is required}
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+    volumes:
+      - type: volume
+        source: ollama-data
+        target: /root/.ollama
+    networks:
+      - slns_schema_flo_internal
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.schema_flo_ollama == ${OLLAMA_NODE_LABEL:?OLLAMA_NODE_LABEL is required}
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      resources:
+        limits:
+          cpus: "${OLLAMA_LIMIT_CPUS:?OLLAMA_LIMIT_CPUS is required}"
+          memory: ${OLLAMA_LIMIT_MEMORY:?OLLAMA_LIMIT_MEMORY is required}
+        reservations:
+          cpus: "${OLLAMA_RESERVATION_CPUS:?OLLAMA_RESERVATION_CPUS is required}"
+          memory: ${OLLAMA_RESERVATION_MEMORY:?OLLAMA_RESERVATION_MEMORY is required}
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 180s
+      labels:
+        io.portainer.accesscontrol.teams: "${TEAM_ID:?TEAM_ID is required}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  ollama-init:
+    image: ${OLLAMA_IMAGE:?OLLAMA_IMAGE with an immutable tag or digest is required}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        attempts=0
+        until ollama list >/dev/null 2>&1; do
+          attempts=$$((attempts + 1))
+          [ "$${attempts}" -lt 60 ] || exit 1
+          sleep 5
+        done
+        ollama pull "$${OLLAMA_MODEL}"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b-instruct}
+    networks:
+      - slns_schema_flo_internal
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.schema_flo_ollama == ${OLLAMA_NODE_LABEL:?OLLAMA_NODE_LABEL is required}
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+      restart_policy:
+        condition: none
+      labels:
+        io.portainer.accesscontrol.teams: "${TEAM_ID:?TEAM_ID is required}"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  frontend-data:
+    name: slns_schema_flo_frontend_data
+    driver: local
+  ollama-data:
+    name: slns_schema_flo_ollama_data
+    driver: local
+
+configs:
+  caddy_config:
+    external: true
+    name: ${CADDY_CONFIG_NAME:?versioned CADDY_CONFIG_NAME is required}
+
+secrets:
+  db_host:
+    external: true
+    name: ${DB_HOST_SECRET_NAME:?versioned DB_HOST_SECRET_NAME is required}
+  db_port:
+    external: true
+    name: ${DB_PORT_SECRET_NAME:?versioned DB_PORT_SECRET_NAME is required}
+  db_user:
+    external: true
+    name: ${DB_USER_SECRET_NAME:?versioned DB_USER_SECRET_NAME is required}
+  db_name:
+    external: true
+    name: ${DB_NAME_SECRET_NAME:?versioned DB_NAME_SECRET_NAME is required}
+  db_password:
+    external: true
+    name: ${DB_PASSWORD_SECRET_NAME:?versioned DB_PASSWORD_SECRET_NAME is required}
+  jwt_secret:
+    external: true
+    name: ${JWT_SECRET_NAME:?versioned JWT_SECRET_NAME is required}
+
+networks: #создали сеть-коридор
+  traefik_default:
+    name: traefik_default
+    external: true
+  postgresql_network:
+    name: postgresql_network
+    external: true
+  slns_schema_flo_internal:
+    name: slns_schema_flo_internal
+    driver: overlay
+    attachable: true
