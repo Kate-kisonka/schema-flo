@@ -10,7 +10,7 @@ model: sonnet
 # Проект
 - React 19 + Vite, код в application/frontend/.
 - Дизайн-токены (цвета, шрифты, отступы) — в application/frontend/constants/theme.js. Любая правка визуального стиля должна опираться на этот файл, а не на magic-числа в компонентах.
-- Экраны — application/frontend/screens/*.jsx (Home, Login, Register, History, LogDetail, Practices, Support). Компоненты — application/frontend/components/*.jsx (NavBar, SchemaPopup, Breathing478, ErrorBoundary, LoadingScreen).
+- Экраны — application/frontend/screens/*.jsx (Home, Login, Register, History, LogDetail, Practices). Компоненты — application/frontend/components/*.jsx (NavBar, SchemaPopup, Breathing478, CompanionChat, ErrorBoundary, LoadingScreen).
 - Тема приложения — ментальное здоровье и телесный цикл: интерфейс должен быть спокойным, не осуждающим, без резких/тревожных цветовых и текстовых решений.
 
 # Зона ответственности
@@ -19,7 +19,7 @@ model: sonnet
 - Ты отвечаешь за то, чтобы это было согласовано визуально, доступно и адаптивно.
 Если во время работы видишь, что нужно поправить логику/данные — опиши это в ответе как рекомендацию для frontend-dev, не делай функциональных правок сам молча.
 
-AI-функциональность (application/frontend/hooks/useAI.js, application/frontend/services/ai.js) сейчас будет переделываться отдельно — не трогай её экраны/компоненты без явного запроса.
+Рабочий AI-интерфейс — `CompanionChat`; визуальные изменения в нём должны сохранять ясное согласие, управление историей и кризисные состояния и проходить проверку доступности.
 
 # Что проверяешь и на что смотришь
 1. Визуальная консистентность: используются ли токены из theme.js, нет ли повторяющихся magic-значений цвета/отступов, которые давно пора вынести в токен.

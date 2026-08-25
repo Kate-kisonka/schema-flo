@@ -4,7 +4,7 @@
 
 Стек: React + Vite + Node.js + Express + PostgreSQL.
 
-> AI-функциональность в коде есть, но не подключена к навигации и не входит в текущий этап.
+> Локальная Ollama подключена через компаньона: `CompanionChat` обращается к `/api/companion/*`, а backend вызывает внутренний API Ollama.
 
 ---
 
@@ -15,6 +15,7 @@
 - Трекер менструального цикла
 - Библиотека практик самоподдержки
 - История записей
+- AI-компаньон с согласием на обработку, историей и управлением данными
 - Авторизация (email + Google OAuth)
 - Backend API + PostgreSQL-хранилище
 
@@ -45,42 +46,41 @@
 
 ```txt
 schema-flo/
-├── backend/
-│   ├── db.js                     # Подключение к PostgreSQL
-│   ├── migrate.js                # Запуск SQL-миграций
-│   ├── server.js                 # Express API
-│   ├── Dockerfile
-│   ├── .env.example
-│   └── migrations/
-│       ├── 001_init.sql
-│       ├── 002_hardening.sql
-│       ├── 003_frontend_state.sql
-│       └── 005_google_oauth.sql
-│
-├── frontend/
-│   ├── App.jsx
-│   ├── components/
-│   ├── constants/
-│   ├── hooks/
-│   │   ├── useAuth.js
-│   │   ├── useCycle.js
-│   │   ├── useDiary.js
-│   │   ├── useHistory.js
-│   │   └── useSilence.js
-│   ├── screens/
-│   │   ├── LoginScreen.jsx
-│   │   ├── RegisterScreen.jsx
-│   │   ├── HomeScreen.jsx
-│   │   ├── HistoryScreen.jsx
-│   │   ├── PracticesScreen.jsx
-│   │   └── LogDetailScreen.jsx
-│   └── services/
-│       ├── authApi.js
-│       ├── db.js
-│       └── migrate.js
-│
-├── docker-compose.yml
-├── package.json
+├── application/
+│   ├── backend/
+│   │   ├── server.js             # Конфигурация и запуск
+│   │   ├── app.js                # Сборка Express-приложения
+│   │   ├── db.js                 # Подключение к PostgreSQL
+│   │   ├── migrate.js            # Запуск SQL-миграций
+│   │   ├── middleware/           # JWT middleware
+│   │   ├── routes/               # HTTP-маршруты по функциональным зонам
+│   │   ├── services/             # Логика Companion и Ollama
+│   │   ├── lib/                  # Общая валидация
+│   │   ├── Dockerfile
+│   │   ├── .env.example
+│   │   └── migrations/
+│   │       ├── 001_init.sql
+│   │       ├── 002_hardening.sql
+│   │       ├── 003_frontend_state.sql
+│   │       ├── 005_google_oauth.sql
+│   │       ├── 006_diary_body_fields.sql
+│   │       ├── 007_companion_chat.sql
+│   │       └── 008_companion_chat_safety.sql
+│   └── frontend/
+│       ├── App.jsx
+│       ├── components/
+│       ├── constants/
+│       ├── hooks/
+│       │   ├── useAuth.js
+│       │   ├── useCompanionChat.js
+│       │   ├── useCycle.js
+│       │   ├── useDiary.js
+│       │   ├── useHistory.js
+│       │   └── useSilence.js
+│       ├── screens/
+│       └── services/
+├── docker-compose-local.yml
+├── docker-compose-dev.yml
 └── README.md
 ```
 
@@ -111,13 +111,18 @@ cd schema-flo
 ### Шаг 2 — Запустить
 
 ```bash
-docker compose up --build -d
+docker compose -f docker-compose-local.yml up --build -d
 ```
 
 **Первый запуск занимает 3–10 минут** — Docker скачивает образы и устанавливает зависимости. Это нормально, последующие запуски займут 10–30 секунд.
 
-Когда всё готово, в терминале появится:
-schema-flo-frontend  | ➜  Local:   http://localhost:5173/
+Проверить состояние сервисов:
+
+```bash
+docker compose -f docker-compose-local.yml ps
+```
+
+> Этот контур предназначен только для локальной разработки и обучения. В нём используются простые тестовые пароли, а опубликованные порты доступны через сетевые интерфейсы компьютера. Не запускай его на публичном сервере или в недоверенной сети.
 
 ---
 
@@ -125,9 +130,10 @@ schema-flo-frontend  | ➜  Local:   http://localhost:5173/
 
 | Сервис      | Адрес                         |
 |-------------|-------------------------------|
-| Приложение  | http://localhost:5173         |
-| Backend API | http://localhost:3001         |
+| Приложение  | http://localhost              |
+| Backend API | http://localhost/api          |
 | pgAdmin     | http://localhost:5050         |
+| Traefik     | http://traefik.localhost      |
 
 ---
 
@@ -142,15 +148,14 @@ schema-flo-frontend  | ➜  Local:   http://localhost:5173/
     - **Username:** `schema_flo`
     - **Password:** `schema_flo`
 
-> Порт `5433` — это порт postgres наружу (чтобы не конфликтовать с локально установленным PostgreSQL).  
-> Внутри Docker сервисы общаются через `5432` — это нормально.
+PostgreSQL не публикуется отдельным портом на компьютере. pgAdmin подключается к нему внутри Docker-сети по адресу `postgres:5432`.
 
 ---
 
 ### Остановка
 
 ```bash
-docker compose down 
+docker compose -f docker-compose-local.yml down
 ```
 
 Данные БД сохраняются — при следующем `up` всё на месте.
@@ -158,5 +163,7 @@ docker compose down
 Сбросить БД полностью:
 
 ```bash
-docker compose down -v
+docker compose -f docker-compose-local.yml down -v
 ```
+
+> `down -v` безвозвратно удаляет локальные данные PostgreSQL, pgAdmin и Ollama. Для обычной остановки используй команду без `-v`.

@@ -56,7 +56,7 @@ Do not run two writing agents in the same files at once. For a cross-layer featu
 ## Engineering Principles
 
 - New code, tests and configuration do not receive explanatory comments. Put explanations in the final chat response; preserve existing owner comments unless explicitly asked to change them.
-- The AI area is frozen: `application/frontend/hooks/useAI.js`, `application/frontend/services/ai.js` and related backend code are excluded from implementation, refactoring and reviews unless the owner explicitly requests otherwise.
+- The working AI path is `CompanionChat` -> `/api/companion/*` -> Express -> Ollama `/api/chat`. Changes to it require coordinated frontend and backend tests plus security review of consent, sensitive messages, retention and data isolation.
 - Before a substantial change, compare a simple option with a more complex one. Prefer the smallest reliable change that meets the current requirement and can be maintained by the project.
 - Use project conventions and established practices. Favour clear names, small focused modules, explicit boundaries and tests for changed behaviour over new abstractions or speculative optimisation.
 
