@@ -1,12 +1,16 @@
-FROM node:20.20.2-alpine3.23
+FROM node:20.20.2-alpine3.23 AS build
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
 
 COPY . .
+RUN npm run build
 
-EXPOSE 5173
+FROM alpine:3.23
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+WORKDIR /app
+COPY --from=build /app/dist ./dist
+
+CMD ["/bin/true"]

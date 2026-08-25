@@ -1,9 +1,9 @@
 node_modules
-dist
-dist-ssr
 npm-debug.log*
 .env
 .env.*
+*.test.js
+coverage
 .git
 .gitignore
 Dockerfile*
