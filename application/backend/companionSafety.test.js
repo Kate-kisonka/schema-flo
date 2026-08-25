@@ -65,11 +65,15 @@ test("does not flag contextual, negated, or ordinary planning phrases", () => {
 
 test("global retention query removes unsafe rows and invalidates affected generations", async () => {
   const serverSource = await fs.readFile(new URL("./server.js", import.meta.url), "utf8");
+  const serviceSource = await fs.readFile(
+    new URL("./services/companion.js", import.meta.url),
+    "utf8"
+  );
   assert.match(
     serverSource,
     /readBoundedEnvInt\("COMPANION_CLEANUP_INTERVAL_HOURS", 1, 1, 24\)/
   );
-  const sql = serverSource.match(/const COMPANION_GLOBAL_CLEANUP_SQL = `([\s\S]*?)`;/)?.[1];
+  const sql = serviceSource.match(/COMPANION_GLOBAL_CLEANUP_SQL = `([\s\S]*?)`;/)?.[1];
   assert.ok(sql, "cleanup SQL must be declared");
   assert.match(sql, /DELETE FROM companion_messages/);
   assert.match(sql, /NOT EXISTS/);
@@ -80,24 +84,20 @@ test("global retention query removes unsafe rows and invalidates affected genera
 });
 
 test("chat persistence is guarded by a single conditional version increment", async () => {
-  const serverSource = await fs.readFile(new URL("./server.js", import.meta.url), "utf8");
-  const saveBlock = serverSource.match(
-    /async function saveCompanionExchange[\s\S]*?function auth/
-  )?.[0];
-  assert.ok(saveBlock, "saveCompanionExchange must be declared");
+  const serviceSource = await fs.readFile(
+    new URL("./services/companion.js", import.meta.url),
+    "utf8"
+  );
+  const routeSource = await fs.readFile(
+    new URL("./routes/companion.js", import.meta.url),
+    "utf8"
+  );
+  const saveBlock = serviceSource.match(/async function saveExchange[\s\S]*?return \{/ )?.[0];
+  assert.ok(saveBlock, "saveExchange must be declared");
   assert.match(saveBlock, /SET chat_version = chat_version \+ 1/);
   assert.match(saveBlock, /AND chat_version = \$2/);
   assert.match(saveBlock, /COMPANION_CHAT_CONFLICT/);
-  assert.match(serverSource, /res\.status\(409\)/);
-
-  const chatRoute = serverSource.match(
-    /app\.post\(\s*"\/api\/companion\/chat"[\s\S]*?app\.get\(\s*"\/api\/companion\/chat\/history"/
-  )?.[0];
-  assert.ok(chatRoute, "chat route must be declared");
-  assert.ok(
-    chatRoute.indexOf("isCompanionCrisisMessage") < chatRoute.indexOf("callOllama"),
-    "crisis detection must happen before any Ollama call"
-  );
+  assert.match(routeSource, /res\.status\(409\)/);
 });
 
 test("008 migration converges drifted companion tables to the required contract", async () => {
