@@ -1,0 +1,78 @@
+name: Personal cloud
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-cloud-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 20.20.2
+  VITE_API_URL: https://schema-flo.onrender.com
+
+jobs:
+  verify:
+    name: Tests, audit and images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            application/backend/package-lock.json
+            application/frontend/package-lock.json
+
+      - name: Verify backend
+        working-directory: application/backend
+        run: |
+          npm ci
+          npm test
+          npm audit --omit=dev --audit-level=high
+          node --check app.js
+          node --check server.js
+
+      - name: Verify frontend
+        working-directory: application/frontend
+        run: |
+          npm ci
+          node --test
+          npm run lint
+          npm run build
+          npm audit --audit-level=high
+
+      - name: Build application images
+        run: |
+          docker build --file application/backend/Dockerfile application/backend
+          docker build --file application/frontend/Dockerfile application/frontend
+
+  deploy-render:
+    name: Deploy backend to Render
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+    steps:
+      - name: Validate Render deploy hook
+        run: test -n "$RENDER_DEPLOY_HOOK"
+
+      - name: Deploy verified commit
+        run: curl --fail --show-error --silent --retry 3 --request POST "${RENDER_DEPLOY_HOOK}?ref=${GITHUB_SHA}"

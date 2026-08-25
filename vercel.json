@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm ci --prefix application/frontend",
+  "buildCommand": "npm run build --prefix application/frontend",
+  "outputDirectory": "application/frontend/dist",
+  "build": {
+    "env": {
+      "VITE_API_URL": "https://schema-flo.onrender.com"
+    }
+  }
+}
