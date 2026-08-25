@@ -1,6 +1,6 @@
 import { normalizePhaseKey } from "../utils.js";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 function getToken() {
   return localStorage.getItem("auth_token") || "";
@@ -204,30 +204,6 @@ export const dbSilenceLogs = {
         },
       }),
     });
-  },
-};
-
-// AI-сессии живут в localStorage: на бэкенде нет ни хранилища,
-// ни /api/chat — экран поддержки пока не подключён
-const AI_SESSIONS_KEY = "ai_sessions";
-
-export const dbAISessions = {
-  async getAll() {
-    try {
-      return JSON.parse(localStorage.getItem(AI_SESSIONS_KEY)) || [];
-    } catch {
-      return [];
-    }
-  },
-
-  async upsert(session) {
-    const all = await this.getAll();
-    const next = [session, ...all.filter((s) => s.id !== session.id)];
-    try {
-      localStorage.setItem(AI_SESSIONS_KEY, JSON.stringify(next));
-    } catch {
-      // localStorage переполнен — сессия останется только в памяти
-    }
   },
 };
 

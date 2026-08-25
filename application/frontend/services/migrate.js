@@ -1,4 +1,4 @@
-const API_URL = import.meta.env?.VITE_API_URL || "http://localhost:3001";
+const API_URL = import.meta.env?.VITE_API_URL || "";
 
 const MIGRATED_PREFIX = "pg_migrated:";
 const CLAIM_KEY = "schema_flo_legacy_data_claim";
